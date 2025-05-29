@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us - Our Team</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white shadow-xl rounded-xl p-8 md:p-12 max-w-4xl w-full">
+        <h1 class="text-4xl font-extrabold text-center text-gray-900 mb-10">
+            Contact Our Team
+        </h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+            <div class="flex flex-col items-center text-center bg-blue-50 p-6 rounded-lg shadow-md">
+                <img
+                    src="{{ url_for('static', filename='Contactus/Aniket.jpg') }}"
+                    alt="Photo of Developer 1"
+                    class="w-36 h-36 rounded-full object-cover border-4 border-blue-300 mb-4 shadow-lg"
+                    onerror="this.onerror=null;this.src='https://placehold.co/150x150/cccccc/333333?text=Image+Error';"
+                >
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Aniket Kadam</h2>
+                <p class="text-md text-gray-600 mb-4">Lead Backend Developer</p>
+                <div class="text-left w-full max-w-xs">
+                    <p class="text-gray-700 mb-2">
+                        <strong class="font-semibold">Email:</strong> <a href="mailto:aniketkadam792001@gmail.com" class="text-blue-600 hover:underline">aniketkadam792001@gmail.com</a>
+                    </p>
+                    <p class="text-gray-700">
+                        <strong class="font-semibold">LinkedIn:</strong> <a href="https://www.linkedin.com/in/aniketkadam792001" target="_blank" class="text-blue-600 hover:underline">linkedin.com/in/aniketkadam792001</a>
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-center text-center bg-green-50 p-6 rounded-lg shadow-md">
+                <img
+                    src="https://placehold.co/150x150/34d399/ffffff?text=Developer+2"
+                    alt="Photo of Developer 2"
+                    class="w-36 h-36 rounded-full object-cover border-4 border-green-300 mb-4 shadow-lg"
+                    onerror="this.onerror=null;this.src='https://placehold.co/150x150/cccccc/333333?text=Image+Error';"
+                >
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Tanuja Salunke</h2>
+                <p class="text-md text-gray-600 mb-4">Front End Specialist</p>
+                <div class="text-left w-full max-w-xs">
+                    <p class="text-gray-700 mb-2">
+                        <strong class="font-semibold">Email:</strong> <a href="mailto:tanujasalunke@gmail.com" class="text-green-600 hover:underline">tanuja.salunke@gmail.com</a>
+                    </p>
+                    <p class="text-gray-700">
+                        <strong class="font-semibold">GitHub:</strong> <a href="https://github.com/tanujasalunke123" target="_blank" class="text-green-600 hover:underline">github.com/tanujasalunke123</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-center text-gray-700 mt-10 text-lg">
+            Feel free to reach out to us directly for any inquiries!
+        </p>
+    </div>
+</body>
+</html>
