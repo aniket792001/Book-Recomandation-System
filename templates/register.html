@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register - Book Recommender</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            background: #f5f6fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .register-container {
+            max-width: 400px;
+            margin: 60px auto;
+            background: #fff;
+            padding: 32px 28px;
+            border-radius: 10px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+        .register-container h2 {
+            text-align: center;
+            margin-bottom: 24px;
+            color: #2d3436;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #636e72;
+        }
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #dfe6e9;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border 0.2s;
+        }
+        input:focus {
+            border-color: #0984e3;
+            outline: none;
+        }
+        .show-password {
+            display: flex;
+            align-items: center;
+            margin-top: 6px;
+        }
+        .show-password input[type="checkbox"] {
+            margin-right: 6px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #0984e3;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #74b9ff;
+        }
+        .login-link {
+            text-align: center;
+            margin-top: 18px;
+            color: #636e72;
+        }
+        .login-link a {
+            color: #0984e3;
+            text-decoration: none;
+        }
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+        /* Add this to your <style> section */
+        .register-btn {
+            width: 100%;
+            padding: 0.9rem;
+            background: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 0.5rem;
+        }
+        .register-btn:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <h2>Create Account</h2>
+        <form method="POST" action="/register">
+            {{ form.hidden_tag() }}
+            <div class="form-group">
+                {{ form.name.label(for="name") }}
+                {{ form.name(id="name", class="form-group") }}
+                {% if form.name.errors %}
+                    <ul>
+                        {% for error in form.name.errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                {{ form.email.label(for="email") }}
+                {{ form.email(id="email", class="form-group") }}
+                {% if form.email.errors %}
+                    <ul>
+                        {% for error in form.email.errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                {{ form.password.label(for="password") }}
+                {{ form.password(id="password", class="form-group") }}
+                {% if form.password.errors %}
+                    <ul>
+                        {% for error in form.password.errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                <div class="show-password">
+                    <input type="checkbox" id="showPass" onclick="togglePassword()">
+                    <label for="showPass" style="margin-bottom:0;">Show Password</label>
+                </div>
+            </div>
+            <!-- Use this for your register button -->
+            {{ form.submit(class_="register-btn") }}
+        </form>
+        <div class="login-link">
+            Already have an account? <a href="/login">Login here</a>
+        </div>
+    </div>
+    <script>
+        function togglePassword() {
+            const pass = document.getElementById('password');
+            const checkbox = document.getElementById('showPass');
+            if (pass && checkbox) {
+                pass.type = checkbox.checked ? "text" : "password";
+            }
+        }
+    </script>
+</body>
+</html>
