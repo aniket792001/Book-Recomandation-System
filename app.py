@@ -205,26 +205,7 @@ def book_detail(book_id):
         return "Book not found", 404
     return render_template('book_detail.html', book=book)
 
-# @app.route('/search_count')
-# def search_count():
-#     user_name = session.get('user_name')
-#     count = History.query.filter_by(name=user_name).count()
-#     return f"You have searched {count} times."
 
-
-
-# @app.route('/search', methods=['POST'])
-# def search():
-#     query = request.form['query']
-#     user_name = session.get('user_name')  # Or however you store the user's name
-
-#     # Store the search in the history table
-#     new_history = History(name=user_name, search_query=query)
-#     db.session.add(new_history)
-#     db.session.commit()
-
-#     # ... your search logic ...
-#     # return render_template('search_results.html', ...)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
