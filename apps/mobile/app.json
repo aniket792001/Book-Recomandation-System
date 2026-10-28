@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "PagePulse AI",
+    "slug": "pagepulse-ai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "pagepulse",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#0F172A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pagepulse.ai"
+    },
+    "android": {
+      "package": "com.pagepulse.ai"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+# Cursor & AI Agent Configuration Rules
+# Source of truth: AI_RULES.md, CONTEXT.md, ARCHITECTURE.md, BRANDING_GUIDELINES.md
+
+- Always read CONTEXT.md, TASKS.md, ARCHITECTURE.md, and BRANDING_GUIDELINES.md before making any code modifications.
+- STRICT TOKEN CONSERVATION: When editing existing code, make surgical edits. For single-word, variable, or line changes, edit ONLY that specific keyword/line. NEVER replace entire multi-line blocks or whole files when a targeted chunk edit suffices.
+- COLOR INVARIANCE: Always use project branding: Primary is #E285C3 (Orchid Rose), Secondary is #818CF8 (Soft Indigo), Light BG is #F5F6FA, Dark BG is #0F172A, Glow is #E0E7FF.
+- NO HARDCODED SECRETS: Never store passwords, tokens, or API keys in source code.
+- TECH STACK: Expo React Native (TypeScript) for Mobile, FastAPI (Python 3.11+, SQLAlchemy 2.0 Async, Pydantic v2) for Backend, PostgreSQL 16 + pgvector for Database.
+- UPDATE TASKS: Always update TASKS.md after completing any task or file modification.
