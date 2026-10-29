@@ -16,11 +16,88 @@ flowchart LR
 
 ---
 
-## 📦 Stage 1: Deploy the FastAPI Backend to Render
+## 📦 Stage 1: Deploy the FastAPI Backend to Cloud
 
-[Render](https://render.com) provides a free tier with automatic HTTPS, continuous deployment from GitHub, and zero server maintenance.
+You can deploy your backend for free to **Hugging Face Spaces (Recommended - 16 GB RAM)** or **Render**.
 
-### Method A: Blueprint (Recommended - 1 Click)
+---
+
+### Option A: Deploy to Hugging Face Spaces (Free 16 GB RAM & 2 vCPUs)
+
+Hugging Face Spaces is generous with free resources (16 GB RAM vs 512 MB on Render) and supports custom Docker containers.
+
+#### Step 1: Create a New Space on Hugging Face
+1. Log in to [Hugging Face](https://huggingface.co) (create a free account if you don't have one).
+2. Go to **[huggingface.co/new-space](https://huggingface.co/new-space)**.
+3. Configure your Space:
+   - **Space Name**: `pagepulse-backend`
+   - **License**: `mit` or `apache-2.0`
+   - **Select the Space SDK**: Select **Docker** &rarr; **Blank**
+   - **Space Hardware**: `Free (2 vCPU · 16 GB RAM)`
+   - **Visibility**: `Public`
+4. Click **Create Space**.
+
+#### Step 2: Upload Backend Files to Your Space
+Hugging Face Spaces are Git repositories. You can upload the backend files directly in 1 minute:
+
+**Method 1: Direct Web Upload (No Git needed)**
+1. In your newly created Space, click the **Files** tab.
+2. Click **Add file** &rarr; **Upload files**.
+3. Drag and drop the following from your project's `apps/backend/` folder:
+   - `Dockerfile`
+   - `requirements.txt`
+   - `app/` (all python files and subdirectories)
+   - `data/` (contains `data/cache/` with the 10 pre-cached Gutenberg novels)
+4. Also create or edit `README.md` in the Space root with this header:
+   ```yaml
+   ---
+   title: PagePulse AI Backend
+   emoji: 📚
+   colorFrom: pink
+   colorTo: indigo
+   sdk: docker
+   app_port: 7860
+   pinned: false
+   ---
+   ```
+5. Click **Commit changes to main**.
+
+**Method 2: Git Push to Hugging Face**
+```bash
+# Clone your Hugging Face Space repository
+git clone https://huggingface.co/spaces/YOUR_HF_USERNAME/pagepulse-backend hf-space
+cd hf-space
+
+# Copy apps/backend files into the Space
+cp -r ../apps/backend/app ./
+cp -r ../apps/backend/data ./
+cp ../apps/backend/requirements.txt ./
+cp ../apps/backend/Dockerfile ./
+
+# Add and push
+git add .
+git commit -m "Deploy PagePulse AI backend"
+git push
+```
+
+#### Step 3: Get Your Live Hugging Face API URL
+Once Hugging Face finishes building the container (~1-2 minutes):
+1. Your public API endpoint will be:
+   ```
+   https://YOUR_HF_USERNAME-pagepulse-backend.hf.space
+   ```
+2. Test it by opening:
+   ```
+   https://YOUR_HF_USERNAME-pagepulse-backend.hf.space/docs
+   ```
+3. Your mobile API base URL for `apps/mobile/.env` is:
+   ```env
+   EXPO_PUBLIC_API_URL=https://YOUR_HF_USERNAME-pagepulse-backend.hf.space/api/v1
+   ```
+
+---
+
+### Option B: Deploy to Render (Alternative)
 1. Push your repository to **GitHub**.
 2. Go to your [Render Dashboard](https://dashboard.render.com).
 3. Click **New +** &rarr; **Blueprint**.

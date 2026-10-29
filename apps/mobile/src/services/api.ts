@@ -5,14 +5,21 @@ import Constants from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
 
 const getBaseUrl = (): string => {
+  // If an explicit remote cloud API URL is set in .env (e.g. Render, Railway), use it everywhere!
+  if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.startsWith('https://')) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
   if (Platform.OS === 'web') {
     return 'http://localhost:8000/api/v1';
   }
-  // Automatically extract the host machine IP when running in Expo Go on a physical phone
+
+  // Automatically extract the host machine IP when developing locally in Expo Go
   const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
   if (expoHost) {
     return `http://${expoHost}:8000/api/v1`;
   }
+
   return process.env.EXPO_PUBLIC_API_URL || 'http://10.214.175.24:8000/api/v1';
 };
 
@@ -188,7 +195,7 @@ export const BookService = {
       const res = await api.get<BookContentResponse>(`/books/${bookId}/content`);
       // Cache authentic book content to AsyncStorage for offline reading
       if (res.data && res.data.pages && res.data.pages.length > 0) {
-        AsyncStorage.setItem(`book_content_${bookId}`, JSON.stringify(res.data)).catch(() => {});
+        AsyncStorage.setItem(`book_content_${bookId}`, JSON.stringify(res.data)).catch(() => { });
       }
       return res.data;
     } catch (err) {
@@ -198,7 +205,7 @@ export const BookService = {
         if (cached) {
           return JSON.parse(cached);
         }
-      } catch (_) {}
+      } catch (_) { }
       throw err;
     }
   },
