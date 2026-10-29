@@ -126,6 +126,8 @@
   - Theme toggler (Light `#FFFFFF`, Dark `#0F172A`, Sepia `#FBF0D9`, Rose `#FFF5F9`).
   - Progress tracker, slider, and next/prev chapter navigation.
 - [x] **T6.4**: Offline state persistence via `useLibraryStore` and local storage.
+- [x] **T6.5**: Chapter Table of Contents (TOC) Bottom Drawer with instant jump-to-chapter navigation.
+- [x] **T6.6**: Native Offline Text-to-Speech (TTS / Listen Mode) using `expo-speech`, floating audio player bar, and speed cycling (1x, 1.25x, 1.5x, 0.75x).
 
 ---
 
@@ -139,5 +141,7 @@
 ### Phase 8: Testing, Hardening & Deployment
 - [ ] **T8.1**: Backend unit and integration tests using `pytest` and `httpx`.
 - [ ] **T8.2**: Mobile component and hook tests with Jest and React Native Testing Library.
-- [ ] **T8.3**: Multi-stage `Dockerfile` for FastAPI backend.
-- [ ] **T8.4**: GitHub Actions CI workflow for linting, typechecking, and automated testing.
+- [x] **T8.3**: Multi-stage production `Dockerfile` for FastAPI backend (`apps/backend/Dockerfile`).
+- [x] **T8.4**: Render Cloud Blueprint configuration (`render.yaml`) for zero-downtime deployment.
+- [x] **T8.5**: Standalone Android APK build profile in `apps/mobile/eas.json` and permissions in `app.json`.
+- [x] **T8.6**: 3-Stage manual deployment guide authoring (`DEPLOYMENT_GUIDE.md`).

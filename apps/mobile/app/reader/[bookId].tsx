@@ -7,10 +7,13 @@ import {
   ScrollView,
   StatusBar,
   ActivityIndicator,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import * as Speech from 'expo-speech';
 import { Colors, BorderRadius, Spacing } from '../../src/constants/theme';
 import { useLibraryStore, ReaderThemeKey } from '../../src/store/useLibraryStore';
 import { BookService, LibraryService, Book, BookContentResponse } from '../../src/services/api';
@@ -18,6 +21,45 @@ import { Ionicons } from '@expo/vector-icons';
 import { AICompanionModal } from '../../src/components/AICompanionModal';
 import { getBookPages } from '../../src/services/readerContent';
 import { SAMPLE_BOOKS } from '../(tabs)/index';
+
+/**
+ * Splits chapter text into safe chunks under 2,000 characters to conform
+ * to Android TextToSpeech engine's max limit of 4,000 characters per call.
+ */
+function splitTextIntoSpeechChunks(text: string, maxChunkLength = 1500): string[] {
+  if (!text) return [];
+  const paragraphs = text.split(/\n+/);
+  const chunks: string[] = [];
+  let currentChunk = '';
+
+  for (const paragraph of paragraphs) {
+    if ((currentChunk + '\n' + paragraph).length < maxChunkLength) {
+      currentChunk = currentChunk ? `${currentChunk}\n${paragraph}` : paragraph;
+    } else {
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+        currentChunk = '';
+      }
+
+      if (paragraph.length < maxChunkLength) {
+        currentChunk = paragraph;
+      } else {
+        const sentences = paragraph.match(/[^.!?]+[.!?]+|\S+/g) || [paragraph];
+        for (const s of sentences) {
+          if ((currentChunk + ' ' + s).length < maxChunkLength) {
+            currentChunk = currentChunk ? `${currentChunk} ${s}` : s;
+          } else {
+            if (currentChunk.trim()) chunks.push(currentChunk.trim());
+            currentChunk = s;
+          }
+        }
+      }
+    }
+  }
+
+  if (currentChunk.trim()) chunks.push(currentChunk.trim());
+  return chunks;
+}
 
 export default function ReaderScreen() {
   const { bookId, page } = useLocalSearchParams<{ bookId: string; page?: string }>();
@@ -47,6 +89,10 @@ export default function ReaderScreen() {
 
   const [aiModalVisible, setAiModalVisible] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
+  const [tocModalVisible, setTocModalVisible] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speechRate, setSpeechRate] = useState<number>(1.0);
+  const [ttsBarVisible, setTtsBarVisible] = useState(false);
 
   // Check offline book first, then sample books, then query API
   const offlineBook = downloadedBooks.find((b) => b.id === bookId);
@@ -148,6 +194,94 @@ export default function ReaderScreen() {
     }
   };
 
+  const speechChunksRef = useRef<string[]>([]);
+  const speechIndexRef = useRef<number>(0);
+  const isSpeakingRef = useRef<boolean>(false);
+
+  // Stop TTS on unmount
+  useEffect(() => {
+    return () => {
+      isSpeakingRef.current = false;
+      Speech.stop();
+    };
+  }, []);
+
+  const playNextChunk = (chunks: string[], index: number, rate: number) => {
+    if (!isSpeakingRef.current) return;
+
+    if (index >= chunks.length) {
+      // Completed reading all chunks of this chapter
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      if (activePage < totalPages) {
+        handleNextPage();
+      }
+      return;
+    }
+
+    const chunk = chunks[index];
+    Speech.speak(chunk, {
+      language: 'en-US',
+      rate,
+      onDone: () => {
+        speechIndexRef.current = index + 1;
+        playNextChunk(chunks, index + 1, rate);
+      },
+      onError: (err) => {
+        console.warn('Speech playback interrupted or failed:', err);
+        setIsSpeaking(false);
+        isSpeakingRef.current = false;
+      },
+    });
+  };
+
+  const startSpeech = (startFromIndex = 0) => {
+    Speech.stop();
+    const chunks = splitTextIntoSpeechChunks(pageText, 1500);
+    speechChunksRef.current = chunks;
+    speechIndexRef.current = startFromIndex;
+    isSpeakingRef.current = true;
+    setIsSpeaking(true);
+    setTtsBarVisible(true);
+    playNextChunk(chunks, startFromIndex, speechRate);
+  };
+
+  const toggleSpeech = async () => {
+    if (isSpeaking) {
+      Speech.stop();
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+    } else {
+      startSpeech(speechIndexRef.current);
+    }
+  };
+
+  const handleSpeechRateCycle = () => {
+    const nextRate = speechRate === 1.0 ? 1.25 : speechRate === 1.25 ? 1.5 : speechRate === 1.5 ? 0.75 : 1.0;
+    setSpeechRate(nextRate);
+    if (isSpeakingRef.current) {
+      Speech.stop();
+      playNextChunk(speechChunksRef.current, speechIndexRef.current, nextRate);
+    }
+  };
+
+  const stopSpeech = () => {
+    Speech.stop();
+    isSpeakingRef.current = false;
+    setIsSpeaking(false);
+    setTtsBarVisible(false);
+    speechIndexRef.current = 0;
+  };
+
+  // When chapter page changes, if listen mode is currently active, read the new chapter
+  useEffect(() => {
+    if (isSpeakingRef.current) {
+      startSpeech(0);
+    } else {
+      speechIndexRef.current = 0;
+    }
+  }, [activePage]);
+
   const themes: { key: ReaderThemeKey; bg: string; text: string }[] = [
     { key: 'night', bg: '#0F172A', text: '#E2E8F0' },
     { key: 'day', bg: '#FFFFFF', text: '#1A1A1A' },
@@ -176,14 +310,24 @@ export default function ReaderScreen() {
           </View>
 
           <View style={styles.topActions}>
-            <TouchableOpacity onPress={() => setBookmarked(!bookmarked)} style={styles.topBtn}>
+            <TouchableOpacity onPress={() => setTocModalVisible(true)} style={styles.topBtn} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+              <Ionicons name="list-outline" size={22} color={themeConfig.text} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={toggleSpeech} style={styles.topBtn} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+              <Ionicons
+                name={isSpeaking ? 'volume-high' : 'headset-outline'}
+                size={22}
+                color={isSpeaking ? Colors.primary : themeConfig.text}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setBookmarked(!bookmarked)} style={styles.topBtn} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
               <Ionicons
                 name={bookmarked ? 'bookmark' : 'bookmark-outline'}
                 size={22}
                 color={bookmarked ? Colors.primary : themeConfig.text}
               />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setAiModalVisible(true)} style={styles.topBtn}>
+            <TouchableOpacity onPress={() => setAiModalVisible(true)} style={styles.topBtn} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
               <Ionicons name="sparkles" size={20} color={Colors.primary} />
             </TouchableOpacity>
           </View>
@@ -377,6 +521,101 @@ export default function ReaderScreen() {
           </View>
         </SafeAreaView>
       )}
+
+      {/* Floating Audio Player Toolbar */}
+      {ttsBarVisible && (
+        <View style={[styles.audioPlayerCard, { backgroundColor: readerTheme === 'night' ? '#1E293B' : '#F8FAFC' }]}>
+          <View style={styles.audioInfo}>
+            <Ionicons name="volume-medium" size={18} color={Colors.primary} />
+            <Text style={[styles.audioTitle, { color: readerTheme === 'night' ? '#F8FAFC' : '#0F172A' }]} numberOfLines={1}>
+              {currentChapterTitle}
+            </Text>
+          </View>
+          <View style={styles.audioControls}>
+            <TouchableOpacity onPress={handleSpeechRateCycle} style={styles.rateBtn}>
+              <Text style={styles.rateText}>{speechRate}x</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={toggleSpeech} style={styles.playPauseBtn}>
+              <Ionicons name={isSpeaking ? 'pause' : 'play'} size={20} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={stopSpeech} style={styles.stopBtn}>
+              <Ionicons name="close" size={18} color={readerTheme === 'night' ? '#94A3B8' : '#64748B'} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Table of Contents (TOC) Modal */}
+      <Modal
+        visible={tocModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setTocModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.tocContainer, { backgroundColor: themeConfig.background }]}>
+            <View style={styles.tocHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.tocHeaderTitle, { color: themeConfig.text }]}>
+                  Table of Contents
+                </Text>
+                <Text style={[styles.tocHeaderSubtitle, { color: themeConfig.text }]} numberOfLines={1}>
+                  {totalPages} Chapters • {bookTitle}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setTocModalVisible(false)} style={styles.closeBtn}>
+                <Ionicons name="close" size={24} color={themeConfig.text} />
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={pages}
+              keyExtractor={(_, index) => `chapter-${index + 1}`}
+              showsVerticalScrollIndicator={true}
+              renderItem={({ item, index }) => {
+                const pageNum = index + 1;
+                const isCurrent = pageNum === activePage;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.tocItem,
+                      isCurrent && { backgroundColor: 'rgba(226, 133, 195, 0.15)' },
+                    ]}
+                    onPress={() => {
+                      setCurrentPage(pageNum);
+                      setTocModalVisible(false);
+                      scrollRef.current?.scrollTo({ y: 0, animated: true });
+                    }}
+                  >
+                    <View style={styles.tocItemLeft}>
+                      <Text
+                        style={[
+                          styles.tocItemNumber,
+                          { color: isCurrent ? Colors.primary : themeConfig.text, opacity: isCurrent ? 1 : 0.6 },
+                        ]}
+                      >
+                        {String(pageNum).padStart(2, '0')}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.tocItemTitle,
+                          { color: isCurrent ? Colors.primary : themeConfig.text, fontWeight: isCurrent ? '700' : '500' },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.title}
+                      </Text>
+                    </View>
+                    {isCurrent && (
+                      <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* AI Companion Modal */}
       <AICompanionModal
@@ -601,5 +840,116 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  audioPlayerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  audioInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  audioTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  audioControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  rateBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(150, 150, 150, 0.15)',
+  },
+  rateText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  playPauseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopBtn: {
+    padding: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  tocContainer: {
+    height: '75%',
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    paddingTop: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xl,
+  },
+  tocHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(150, 150, 150, 0.2)',
+    marginBottom: Spacing.sm,
+  },
+  tocHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  tocHeaderSubtitle: {
+    fontSize: 12,
+    opacity: 0.7,
+    marginTop: 2,
+  },
+  closeBtn: {
+    padding: 6,
+  },
+  tocItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(150, 150, 150, 0.1)',
+  },
+  tocItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  tocItemNumber: {
+    fontSize: 13,
+    fontWeight: '700',
+    width: 24,
+  },
+  tocItemTitle: {
+    fontSize: 14,
+    flex: 1,
   },
 });

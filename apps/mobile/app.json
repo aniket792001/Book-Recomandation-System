@@ -14,7 +14,14 @@
       "bundleIdentifier": "com.pagepulse.ai"
     },
     "android": {
-      "package": "com.pagepulse.ai"
+      "package": "com.pagepulse.ai",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F172A"
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "bundler": "metro",

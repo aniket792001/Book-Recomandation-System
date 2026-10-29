@@ -1,0 +1,30 @@
+# Render Blueprint specification for PagePulse AI
+# Documentation: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: pagepulse-backend
+    runtime: python
+    rootDir: apps/backend
+    region: oregon
+    plan: free
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /docs
+    envVars:
+      - key: PYTHONPATH
+        value: .
+      - key: PROJECT_NAME
+        value: "PagePulse AI"
+      - key: API_V1_STR
+        value: "/api/v1"
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: "30"
+      - key: CORS_ORIGINS
+        value: '["*"]'
+      - key: DATABASE_URL
+        value: "sqlite+aiosqlite:///./pagepulse.db"
+

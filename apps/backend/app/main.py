@@ -18,16 +18,15 @@ logger = logging.getLogger("pagepulse.main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: attempt to connect to database without crashing if offline
+    # Startup: initialize database schema and seed defaults if empty
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Successfully connected to database and initialized schema.")
+        from app.seed import seed_database
+        await seed_database()
+        logger.info("Successfully connected to database and verified schema & seed catalog.")
     except Exception as e:
         logger.warning(
-            f"Database connection could not be established on startup: {e}\n"
-            "FastAPI is running in standalone mode. To enable full database persistence, "
-            "start PostgreSQL or run Docker with pgvector."
+            f"Database auto-seed check exception on startup: {e}\n"
+            "FastAPI is running in standalone mode."
         )
     yield
     # Shutdown: dispose connection pool
