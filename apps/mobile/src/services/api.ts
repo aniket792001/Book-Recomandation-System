@@ -1,7 +1,22 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+import { useAuthStore } from '../store/useAuthStore';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const getBaseUrl = (): string => {
+  if (Platform.OS === 'web') {
+    return 'http://localhost:8000/api/v1';
+  }
+  // Automatically extract the host machine IP when running in Expo Go on a physical phone
+  const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
+  if (expoHost) {
+    return `http://${expoHost}:8000/api/v1`;
+  }
+  return process.env.EXPO_PUBLIC_API_URL || 'http://10.214.175.24:8000/api/v1';
+};
+
+const API_BASE_URL = getBaseUrl();
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -24,6 +39,87 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Queue for handling concurrent requests during token refresh
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value?: any) => void;
+  reject: (reason?: any) => void;
+}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Response interceptor: automatically refresh expired access token and retry request
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    const isAuthEndpoint =
+      originalRequest?.url?.includes('/auth/login') ||
+      originalRequest?.url?.includes('/auth/register') ||
+      originalRequest?.url?.includes('/auth/refresh') ||
+      originalRequest?.url?.includes('/auth/otp/verify');
+
+    if (error.response?.status === 401 && !originalRequest?._retry && !isAuthEndpoint) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+            }
+            return api(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const storedRefreshToken = await AsyncStorage.getItem('refresh_token');
+        if (!storedRefreshToken) {
+          processQueue(new Error('No refresh token available'), null);
+          await useAuthStore.getState().logout();
+          return Promise.reject(error);
+        }
+
+        const refreshRes = await axios.post<AuthResponse>(`${API_BASE_URL}/auth/refresh`, {
+          refresh_token: storedRefreshToken,
+        });
+
+        const { access_token, refresh_token: newRefreshToken, user } = refreshRes.data;
+
+        await useAuthStore.getState().setAuth(access_token, user, newRefreshToken);
+
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+        }
+        processQueue(null, access_token);
+        return api(originalRequest);
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        await useAuthStore.getState().logout();
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export interface Book {
   id: string;
   title: string;
@@ -35,6 +131,20 @@ export interface Book {
   avg_rating: number;
   rating_count: number;
   gutenberg_id?: number;
+}
+
+export interface BookContentPage {
+  page: number;
+  title: string;
+  content: string;
+}
+
+export interface BookContentResponse {
+  book_id: string;
+  title: string;
+  author: string;
+  total_pages: number;
+  pages: BookContentPage[];
 }
 
 export interface ReadingProgress {
@@ -71,6 +181,26 @@ export const BookService = {
   getSimilar: async (bookId: string, limit = 6): Promise<any[]> => {
     const res = await api.get(`/recommend/similar/${bookId}?limit=${limit}`);
     return res.data;
+  },
+
+  getContent: async (bookId: string): Promise<BookContentResponse> => {
+    try {
+      const res = await api.get<BookContentResponse>(`/books/${bookId}/content`);
+      // Cache authentic book content to AsyncStorage for offline reading
+      if (res.data && res.data.pages && res.data.pages.length > 0) {
+        AsyncStorage.setItem(`book_content_${bookId}`, JSON.stringify(res.data)).catch(() => {});
+      }
+      return res.data;
+    } catch (err) {
+      // If network fails or user is offline, check AsyncStorage cached copy
+      try {
+        const cached = await AsyncStorage.getItem(`book_content_${bookId}`);
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      } catch (_) {}
+      throw err;
+    }
   },
 };
 
@@ -150,5 +280,38 @@ export const AuthService = {
     const res = await api.get<AuthUser>('/auth/me');
     return res.data;
   },
-};
 
+  refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
+    const res = await api.post<AuthResponse>('/auth/refresh', {
+      refresh_token: refreshToken,
+    });
+    return res.data;
+  },
+
+  requestPasswordReset: async (email: string): Promise<SendOtpResponse> => {
+    const res = await api.post<SendOtpResponse>('/auth/password-reset/request', { email });
+    return res.data;
+  },
+
+  confirmPasswordReset: async (
+    email: string,
+    code: string,
+    newPassword: string
+  ): Promise<AuthResponse> => {
+    const res = await api.post<AuthResponse>('/auth/password-reset/confirm', {
+      email,
+      code,
+      new_password: newPassword,
+    });
+    return res.data;
+  },
+
+  updateProfile: async (data: {
+    full_name?: string;
+    current_password?: string;
+    new_password?: string;
+  }): Promise<AuthUser> => {
+    const res = await api.patch<AuthUser>('/auth/me', data);
+    return res.data;
+  },
+};

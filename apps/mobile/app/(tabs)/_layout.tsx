@@ -29,7 +29,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: any; size: number }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
@@ -38,7 +38,7 @@ export default function TabLayout() {
         name="explore"
         options={{
           title: 'Explore',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: any; size: number }) => (
             <Ionicons name="compass-outline" size={size} color={color} />
           ),
         }}
@@ -47,7 +47,7 @@ export default function TabLayout() {
         name="library"
         options={{
           title: 'Bookshelf',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: any; size: number }) => (
             <Ionicons name="library-outline" size={size} color={color} />
           ),
         }}
@@ -56,7 +56,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: any; size: number }) => (
             <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}

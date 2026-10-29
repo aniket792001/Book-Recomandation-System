@@ -40,3 +40,17 @@ class BookRecommendationResponse(BaseModel):
     book: BookResponse
     similarity_score: float
     recommendation_reason: Optional[str] = None
+
+
+class BookContentPage(BaseModel):
+    page: int
+    title: str
+    content: str
+
+
+class BookContentResponse(BaseModel):
+    book_id: str
+    title: str
+    author: str
+    total_pages: int
+    pages: List[BookContentPage]

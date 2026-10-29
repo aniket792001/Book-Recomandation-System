@@ -13,15 +13,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Colors, BorderRadius, Spacing } from '../../src/constants/theme';
 import { useLibraryStore, ReaderThemeKey } from '../../src/store/useLibraryStore';
-import { BookService, LibraryService, Book } from '../../src/services/api';
+import { BookService, LibraryService, Book, BookContentResponse } from '../../src/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { AICompanionModal } from '../../src/components/AICompanionModal';
 import { getBookPages } from '../../src/services/readerContent';
+import { SAMPLE_BOOKS } from '../(tabs)/index';
 
 export default function ReaderScreen() {
   const { bookId, page } = useLocalSearchParams<{ bookId: string; page?: string }>();
   const router = useRouter();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<any>(null);
 
   const {
     readerTheme,
@@ -47,32 +48,64 @@ export default function ReaderScreen() {
   const [aiModalVisible, setAiModalVisible] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
 
-  // Check offline book first, then query API
+  // Check offline book first, then sample books, then query API
   const offlineBook = downloadedBooks.find((b) => b.id === bookId);
+  const sampleFallback = SAMPLE_BOOKS.find((b) => b.id === bookId);
 
   const { data: remoteBook, isLoading } = useQuery<Book>({
     queryKey: ['book-reader', bookId],
     queryFn: () => BookService.getDetail(bookId as string),
     enabled: !!bookId && !offlineBook,
+    initialData: sampleFallback,
   });
 
-  const currentBook = offlineBook || remoteBook;
-  const bookTitle = currentBook?.title || 'Classical Masterpiece';
-  const bookAuthor = currentBook?.author || 'Project Gutenberg';
+  // Query authentic unabridged novel text and chapters from backend / Gutenberg
+  const {
+    data: bookContent,
+    isLoading: isContentLoading,
+    isError: isContentError,
+    refetch: refetchContent,
+  } = useQuery<BookContentResponse>({
+    queryKey: ['book-content', bookId],
+    queryFn: () => BookService.getContent(bookId as string),
+    enabled: !!bookId,
+    retry: 1,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+
+  const currentBook = offlineBook || remoteBook || sampleFallback;
+  const bookTitle = bookContent?.title || currentBook?.title || 'Classical Masterpiece';
+  const bookAuthor = bookContent?.author || currentBook?.author || 'Project Gutenberg';
   const bookCover = currentBook?.cover_url;
 
-  // Prepare distinct pages dynamically per book
-  const pages = useMemo(() => {
+  // Fallback excerpt pages if offline or before full text finishes downloading
+  const fallbackPages = useMemo(() => {
     return getBookPages({
       title: currentBook?.title,
       author: currentBook?.author,
-      description: currentBook?.description,
+      description: (currentBook as any)?.description,
     });
-  }, [currentBook?.title, currentBook?.author, currentBook?.description]);
+  }, [currentBook?.title, currentBook?.author, (currentBook as any)?.description]);
 
-  const totalPages = pages.length;
+  // Dynamic pages: use full chapters from API/cache if available, otherwise fallback preview
+  const pages: { title: string; content: string }[] = useMemo(() => {
+    if (bookContent?.pages && bookContent.pages.length > 0) {
+      return bookContent.pages.map((p) => ({
+        title: p.title || `Chapter ${p.page}`,
+        content: p.content,
+      }));
+    }
+    return fallbackPages.map((text, idx) => ({
+      title: `Page ${idx + 1}`,
+      content: text,
+    }));
+  }, [bookContent?.pages, fallbackPages]);
+
+  const totalPages = Math.max(1, pages.length);
   const activePage = Math.min(Math.max(1, currentPage), totalPages);
-  const pageText = pages[activePage - 1];
+  const currentPageData = pages[activePage - 1] || { title: `Page ${activePage}`, content: '' };
+  const currentChapterTitle = currentPageData.title;
+  const pageText = currentPageData.content;
   const progressPercentage = Math.round((activePage / totalPages) * 100);
 
   const themeConfig = Colors.reader[readerTheme as ReaderThemeKey] || Colors.reader.night;
@@ -135,10 +168,10 @@ export default function ReaderScreen() {
 
           <View style={styles.headerTitleContainer}>
             <Text style={[styles.chapterTitle, { color: themeConfig.text }]} numberOfLines={1}>
-              {bookTitle}
+              {currentChapterTitle}
             </Text>
-            <Text style={[styles.pageSubtitle, { color: themeConfig.text }]}>
-              Page {activePage} of {totalPages}
+            <Text style={[styles.pageSubtitle, { color: themeConfig.text }]} numberOfLines={1}>
+              {bookTitle} • Page {activePage} of {totalPages}
             </Text>
           </View>
 
@@ -165,9 +198,12 @@ export default function ReaderScreen() {
         showsVerticalScrollIndicator={true}
         bounces={true}
       >
-        {isLoading && !currentBook ? (
+        {isContentLoading && !bookContent && pages.length === 0 ? (
           <View style={styles.loaderCenter}>
             <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={[styles.loadingText, { color: themeConfig.text }]}>
+              Downloading unabridged novel from Project Gutenberg...
+            </Text>
           </View>
         ) : (
           <>
@@ -180,6 +216,27 @@ export default function ReaderScreen() {
                 {controlsVisible ? 'Tap to hide menu' : 'Tap to show menu'}
               </Text>
             </TouchableOpacity>
+
+            {isContentLoading && !bookContent && (
+              <View style={styles.loadingBanner}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+                <Text style={[styles.loadingBannerText, { color: themeConfig.text }]}>
+                  Fetching unabridged text...
+                </Text>
+              </View>
+            )}
+
+            {isContentError && !bookContent && (
+              <View style={styles.offlineNoticeBanner}>
+                <Ionicons name="cloud-offline-outline" size={16} color={Colors.primary} />
+                <Text style={[styles.offlineNoticeText, { color: themeConfig.text }]}>
+                  Showing offline preview.
+                </Text>
+                <TouchableOpacity onPress={() => refetchContent()} style={styles.retryBtn}>
+                  <Text style={styles.retryBtnText}>Retry Full Novel</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             <Text
               style={[
@@ -379,6 +436,55 @@ const styles = StyleSheet.create({
     paddingVertical: 100,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    fontWeight: '500',
+    opacity: 0.7,
+  },
+  loadingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(226, 133, 195, 0.1)',
+    borderRadius: 8,
+    marginBottom: Spacing.md,
+  },
+  loadingBannerText: {
+    fontSize: 12,
+    fontWeight: '500',
+    opacity: 0.8,
+  },
+  offlineNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(129, 140, 248, 0.12)',
+    borderRadius: 8,
+    marginBottom: Spacing.md,
+  },
+  offlineNoticeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    opacity: 0.8,
+  },
+  retryBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: Colors.primary,
+    borderRadius: 4,
+  },
+  retryBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFF',
   },
   togglePromptBar: {
     alignSelf: 'center',

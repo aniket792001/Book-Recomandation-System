@@ -69,11 +69,16 @@
   - `GET /api/v1/books` (Paginated list with filtering and search)
   - `GET /api/v1/books/{id}` (Detail view)
   - `GET /api/v1/books/{id}/download` (Stream legal EPUB/PDF or return signed download link)
+  - `GET /api/v1/books/{id}/content` (Stream authentic full-length Gutenberg novel text parsed into chapters/pages)
   - `GET /api/v1/books/popular` (Ranked by ratings and downloads)
 - [x] **T3.4**: Implement User Library API (`apps/backend/app/api/v1/library.py`):
   - `GET /api/v1/library/progress`
   - `POST /api/v1/library/progress` (Sync reading percentage & CFI locator)
   - `POST /api/v1/library/bookmark`
+- [x] **T3.5**: Full Gutenberg Book Content Ingestion & Chapter Parser (`apps/backend/app/services/book_content_service.py`):
+  - Automatic on-demand download of unabridged legal texts via Project Gutenberg.
+  - Strips legal header/footer boilerplates, cleans text, and splits into chapters/pages.
+  - Disk-backed JSON cache (`apps/backend/data/cache/{gutenberg_id}.json`) for sub-millisecond reader responses.
 
 ---
 
@@ -109,13 +114,17 @@
 
 ---
 
-### Phase 6: In-App EPUB & PDF Reader Module
+### Phase 6: In-App EPUB & Reading Engine Module
 - [x] **T6.1**: Implement Reader Screen in `apps/mobile/app/reader/[bookId].tsx`.
-- [x] **T6.2**: Integrate in-app typography and comfortable long-form reading canvas.
+- [x] **T6.2**: Dynamic Full-Novel Content Engine:
+  - Fetches authentic unabridged text from `GET /api/v1/books/{id}/content`.
+  - Parses and paginates into authentic full chapters (e.g. 61 chapters for *Pride and Prejudice*, 25 chapters for *Frankenstein*).
+  - Caches unabridged book text locally in `AsyncStorage` (`book_content_{bookId}`) for 100% offline access.
+  - Displays dynamic chapter titles and page progress indicators in top floating bar.
 - [x] **T6.3**: Add Reading Controls:
-  - Font size adjustment, font family selection, line spacing.
+  - Font size adjustment (A- / A+), serif typography, line spacing.
   - Theme toggler (Light `#FFFFFF`, Dark `#0F172A`, Sepia `#FBF0D9`, Rose `#FFF5F9`).
-  - Progress tracker and slider.
+  - Progress tracker, slider, and next/prev chapter navigation.
 - [x] **T6.4**: Offline state persistence via `useLibraryStore` and local storage.
 
 ---

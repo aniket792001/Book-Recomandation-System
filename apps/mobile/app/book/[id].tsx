@@ -17,6 +17,7 @@ import { BookService, Book } from '../../src/services/api';
 import { useLibraryStore } from '../../src/store/useLibraryStore';
 import { Ionicons } from '@expo/vector-icons';
 import { AICompanionModal } from '../../src/components/AICompanionModal';
+import { SAMPLE_BOOKS } from '../(tabs)/index';
 
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -24,21 +25,46 @@ export default function BookDetailScreen() {
   const [downloading, setDownloading] = useState(false);
   const [aiModalVisible, setAiModalVisible] = useState(false);
   const saveDownloadedBook = useLibraryStore((s) => s.saveDownloadedBook);
+  const downloadedBooks = useLibraryStore((s) => s.downloadedBooks);
   const downloadedBookIds = useLibraryStore((s) => s.downloadedBookIds);
 
   const isDownloaded = id ? downloadedBookIds.includes(id) : false;
 
-  const { data: book, isLoading } = useQuery<Book>({
+  const foundOffline = downloadedBooks.find((b) => b.id === id);
+  const fallbackBook: Book | undefined = foundOffline
+    ? {
+        id: foundOffline.id,
+        title: foundOffline.title,
+        author: foundOffline.author,
+        cover_url: foundOffline.cover_url,
+        format: foundOffline.format || 'epub',
+        avg_rating: 4.8,
+        rating_count: 1000,
+        download_url: foundOffline.download_url,
+      }
+    : SAMPLE_BOOKS.find((b) => b.id === id);
+
+  const { data: remoteBook, isLoading, isError, refetch } = useQuery<Book>({
     queryKey: ['book-detail', id],
     queryFn: () => BookService.getDetail(id as string),
     enabled: !!id,
+    retry: 1,
   });
+
+  const book = remoteBook || fallbackBook;
 
   const handleDownload = async () => {
     if (!book || isDownloaded) return;
     setDownloading(true);
     try {
-      await saveDownloadedBook(book);
+      await saveDownloadedBook({
+        id: book.id,
+        title: book.title,
+        author: book.author,
+        cover_url: book.cover_url,
+        format: book.format,
+        download_url: book.download_url,
+      });
       alert(`"${book.title}" saved successfully for offline reading!`);
     } catch (e) {
       alert('Could not download book. Please try again.');
@@ -56,10 +82,35 @@ export default function BookDetailScreen() {
     } catch (e) {}
   };
 
-  if (isLoading || !book) {
+  if (isLoading && !book) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!book) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <Ionicons name="alert-circle-outline" size={48} color={Colors.status.error} />
+        <Text style={[styles.title, { textAlign: 'center', marginTop: 12 }]}>
+          Book Not Found
+        </Text>
+        <Text style={[styles.description, { textAlign: 'center', marginBottom: 20 }]}>
+          We couldn't retrieve the details for this title from the library.
+        </Text>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity
+            style={[styles.readNowBtn, { backgroundColor: Colors.dark.surface }]}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.readNowText}>Go Back</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.readNowBtn} onPress={() => refetch()}>
+            <Text style={styles.readNowText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -112,7 +163,7 @@ export default function BookDetailScreen() {
             <Text style={styles.badgeText}>Public Domain</Text>
           </View>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>{book.format.toUpperCase()}</Text>
+            <Text style={styles.badgeText}>{(book.format || 'EPUB').toUpperCase()}</Text>
           </View>
         </View>
 
@@ -123,7 +174,7 @@ export default function BookDetailScreen() {
             activeOpacity={0.85}
             onPress={() => router.push(`/reader/${book.id}` as any)}
           >
-            <Ionicons name="book-open" size={18} color="#FFF" />
+            <Ionicons name="book-outline" size={18} color="#FFF" />
             <Text style={styles.readNowText}>Read In-App</Text>
           </TouchableOpacity>
 
@@ -204,6 +255,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.canvas,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: Spacing.xl,
   },
   navBar: {
     flexDirection: 'row',
