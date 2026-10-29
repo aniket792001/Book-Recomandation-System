@@ -99,3 +99,56 @@ export const AIService = {
     return res.data;
   },
 };
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  full_name?: string;
+  is_active?: boolean;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+
+export interface SendOtpResponse {
+  status: string;
+  message: string;
+  expires_in_seconds: number;
+  demo_code?: string;
+}
+
+export const AuthService = {
+  sendOtp: async (email: string): Promise<SendOtpResponse> => {
+    const res = await api.post<SendOtpResponse>('/auth/otp/send', { email });
+    return res.data;
+  },
+
+  verifyOtp: async (email: string, code: string): Promise<AuthResponse> => {
+    const res = await api.post<AuthResponse>('/auth/otp/verify', { email, code });
+    return res.data;
+  },
+
+  login: async (email: string, password: string): Promise<AuthResponse> => {
+    const res = await api.post<AuthResponse>('/auth/login', { email, password });
+    return res.data;
+  },
+
+  register: async (email: string, password: string, fullName?: string): Promise<AuthResponse> => {
+    const res = await api.post<AuthResponse>('/auth/register', {
+      email,
+      password,
+      full_name: fullName,
+    });
+    return res.data;
+  },
+
+  getMe: async (): Promise<AuthUser> => {
+    const res = await api.get<AuthUser>('/auth/me');
+    return res.data;
+  },
+};
+

@@ -6,7 +6,8 @@ from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.core.security import create_access_token, create_refresh_token, decode_token, get_password_hash, verify_password
 from app.models.user import User
-from app.schemas.user import Token, UserCreate, UserLogin, UserResponse
+from app.schemas.user import SendOtpRequest, Token, UserCreate, UserLogin, UserResponse, VerifyOtpRequest
+from app.services.otp_service import create_and_send_otp, verify_otp_code
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -101,3 +102,62 @@ async def refresh_token(token_data: dict, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/otp/send")
+async def send_otp(req: SendOtpRequest):
+    """
+    Generate and dispatch a 6-digit verification code to the user's email.
+    """
+    code = create_and_send_otp(req.email)
+    return {
+        "status": "success",
+        "message": f"Verification code sent to {req.email}",
+        "expires_in_seconds": 300,
+        "demo_code": code  # Provided for convenience in local development
+    }
+
+
+@router.post("/otp/verify", response_model=Token)
+async def verify_otp(req: VerifyOtpRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Verify the 6-digit OTP code. Automatically provisions an account if first-time user.
+    Returns JWT access & refresh tokens.
+    """
+    is_valid = verify_otp_code(req.email, req.code)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification code."
+        )
+
+    # Find or create user
+    normalized_email = req.email.strip().lower()
+    stmt = select(User).where(User.email == normalized_email)
+    result = await db.execute(stmt)
+    user = result.scalars().first()
+
+    if not user:
+        # Auto-create user for passwordless login
+        generated_password = uuid.uuid4().hex
+        user = User(
+            email=normalized_email,
+            hashed_password=get_password_hash(generated_password),
+            full_name=normalized_email.split("@")[0].capitalize()
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account is disabled.")
+
+    access_token = create_access_token(subject=str(user.id))
+    refresh_token = create_refresh_token(subject=str(user.id))
+
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        user=UserResponse.model_validate(user)
+    )
