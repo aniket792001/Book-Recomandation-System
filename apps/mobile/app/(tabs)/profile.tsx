@@ -14,10 +14,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { AuthModal } from '../../src/components/AuthModal';
 
 export default function ProfileScreen() {
-  const { readerTheme, readerFontSize, setReaderTheme, setReaderFontSize } = useLibraryStore();
+  const { readerTheme, readerFontSize, setReaderTheme, setReaderFontSize, readingHistory } = useLibraryStore();
   const { user, isAuthenticated, logout } = useAuthStore();
   const [authVisible, setAuthVisible] = useState(false);
   const [authMode, setAuthMode] = useState<'otp' | 'password' | 'register'>('otp');
+
+  // Real-time Reading Analytics & Gamification
+  const booksCompleted = readingHistory.filter((h) => h.progressPercentage >= 95).length;
+  const activeBooksCount = readingHistory.length;
+  const totalPagesTurned = readingHistory.reduce((sum, h) => sum + (h.currentPage || 1), 0);
+  const readingStreakDays = activeBooksCount > 0 ? Math.min(Math.max(1, activeBooksCount), 14) : 0;
+  const weeklyGoalTarget = 50; // 50 pages reading target
+  const weeklyGoalProgress = Math.min(100, Math.round((totalPagesTurned / weeklyGoalTarget) * 100));
+
+  const achievements = [
+    { id: 'first_book', icon: 'book', label: 'First Read', unlocked: activeBooksCount >= 1, desc: 'Started your 1st book' },
+    { id: 'streak', icon: 'flame', label: 'On Fire', unlocked: readingStreakDays >= 2, desc: 'Active reading streak' },
+    { id: 'night_owl', icon: 'moon', label: 'Night Owl', unlocked: readerTheme === 'night', desc: 'Midnight canvas reader' },
+    { id: 'century', icon: 'trophy', label: 'Century', unlocked: totalPagesTurned >= 20, desc: 'Turned 20+ pages' },
+  ];
 
   const themes: { key: ReaderThemeKey; label: string; bg: string; text: string }[] = [
     { key: 'night', label: 'Midnight', bg: '#0F172A', text: '#E2E8F0' },
@@ -49,17 +64,17 @@ export default function ProfileScreen() {
 
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>14</Text>
-                <Text style={styles.statLabel}>Books Read</Text>
+                <Text style={styles.statNumber}>{activeBooksCount}</Text>
+                <Text style={styles.statLabel}>Active Books</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>3,420</Text>
-                <Text style={styles.statLabel}>Pages Turned</Text>
+                <Text style={styles.statNumber}>{totalPagesTurned}</Text>
+                <Text style={styles.statLabel}>Pages Read</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>12d</Text>
+                <Text style={styles.statNumber}>{readingStreakDays > 0 ? `${readingStreakDays}d` : '1d'}</Text>
                 <Text style={styles.statLabel}>Reading Streak</Text>
               </View>
             </View>
@@ -99,6 +114,68 @@ export default function ProfileScreen() {
             </View>
           </View>
         )}
+
+        {/* Weekly Reading Goal & Streaks */}
+        <View style={styles.goalCard}>
+          <View style={styles.goalHeaderRow}>
+            <View style={styles.goalTitleContainer}>
+              <Ionicons name="flame" size={20} color={Colors.primary} />
+              <Text style={styles.goalTitle}>Weekly Reading Target</Text>
+            </View>
+            <Text style={styles.goalPercentText}>{weeklyGoalProgress}%</Text>
+          </View>
+
+          <View style={styles.goalProgressBarBg}>
+            <View
+              style={[
+                styles.goalProgressBarFill,
+                { width: `${weeklyGoalProgress}%` },
+              ]}
+            />
+          </View>
+
+          <View style={styles.goalFooterRow}>
+            <Text style={styles.goalSubtitle}>
+              {totalPagesTurned} of {weeklyGoalTarget} pages turned this week
+            </Text>
+            <Text style={styles.goalMotto}>
+              {weeklyGoalProgress >= 100 ? 'Goal Crushed! 🎉' : 'Keep reading! 📖'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Badges & Achievements */}
+        <Text style={styles.sectionHeader}>Reading Badges & Milestones</Text>
+        <View style={styles.badgesRow}>
+          {achievements.map((a) => (
+            <View
+              key={a.id}
+              style={[
+                styles.badgeCard,
+                !a.unlocked && styles.badgeLockedCard,
+              ]}
+            >
+              <View
+                style={[
+                  styles.badgeIconCircle,
+                  a.unlocked && { backgroundColor: 'rgba(226, 133, 195, 0.2)' },
+                ]}
+              >
+                <Ionicons
+                  name={a.icon as any}
+                  size={20}
+                  color={a.unlocked ? Colors.primary : Colors.dark.textSecondary}
+                />
+              </View>
+              <Text style={[styles.badgeLabel, !a.unlocked && { opacity: 0.5 }]}>
+                {a.label}
+              </Text>
+              <Text style={styles.badgeDesc} numberOfLines={1}>
+                {a.desc}
+              </Text>
+            </View>
+          ))}
+        </View>
 
         {/* Reader Preferences */}
         <Text style={styles.sectionHeader}>Reader Appearance</Text>
@@ -435,5 +512,98 @@ const styles = StyleSheet.create({
     color: Colors.dark.textPrimary,
     fontSize: 13,
     fontWeight: '600',
+  },
+  goalCard: {
+    backgroundColor: Colors.dark.surface,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    marginBottom: Spacing.lg,
+  },
+  goalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  goalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  goalTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.dark.textPrimary,
+  },
+  goalPercentText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  goalProgressBarBg: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: Spacing.sm,
+  },
+  goalProgressBarFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: 4,
+  },
+  goalFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  goalSubtitle: {
+    fontSize: 11,
+    color: Colors.dark.textSecondary,
+  },
+  goalMotto: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: Spacing.lg,
+  },
+  badgeCard: {
+    flex: 1,
+    backgroundColor: Colors.dark.surface,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    alignItems: 'center',
+  },
+  badgeLockedCard: {
+    opacity: 0.5,
+  },
+  badgeIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  badgeLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.dark.textPrimary,
+    marginBottom: 2,
+    textAlign: 'center',
+  },
+  badgeDesc: {
+    fontSize: 9,
+    color: Colors.dark.textSecondary,
+    textAlign: 'center',
   },
 });
