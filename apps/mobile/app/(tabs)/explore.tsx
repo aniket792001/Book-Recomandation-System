@@ -36,15 +36,30 @@ export default function ExploreScreen() {
 
     setLoading(true);
     try {
-      const response = await BookService.semanticSearch(q, 12);
-      if (response && response.length > 0) {
-        setResults(response.map((r: any) => r.book));
-      } else {
-        setResults([]);
+      // 1. Search catalog & global API (OpenLibrary / Gutenberg)
+      const catalogRes = await BookService.getAll(1, 20, q.trim());
+      const catalogBooks = catalogRes?.items || [];
+
+      // 2. Search semantic recommendations
+      let semanticBooks: Book[] = [];
+      try {
+        const semRes = await BookService.semanticSearch(q.trim(), 10);
+        if (semRes && semRes.length > 0) {
+          semanticBooks = semRes.map((r: any) => r.book);
+        }
+      } catch (_) {}
+
+      // Combine and deduplicate
+      const combined = [...catalogBooks];
+      for (const sb of semanticBooks) {
+        if (!combined.some((b) => b.id === sb.id || b.title.toLowerCase() === sb.title.toLowerCase())) {
+          combined.push(sb);
+        }
       }
+
+      setResults(combined);
     } catch (e) {
-      console.log('Semantic search fallback:', e);
-      // Fallback sample results
+      console.log('Search fallback:', e);
       setResults([]);
     } finally {
       setLoading(false);

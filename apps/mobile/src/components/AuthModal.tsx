@@ -96,11 +96,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMsg(null);
     try {
       const res = await AuthService.verifyOtp(email.trim(), otpCode.trim());
-      await setAuth(res.access_token, {
-        id: res.user.id,
-        email: res.user.email,
-        full_name: res.user.full_name,
-      });
+      await setAuth(
+        res.access_token,
+        {
+          id: res.user.id,
+          email: res.user.email,
+          full_name: res.user.full_name,
+        },
+        res.refresh_token
+      );
       setSuccessMsg('Successfully authenticated!');
       setTimeout(() => {
         onClose();
@@ -122,11 +126,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMsg(null);
     try {
       const res = await AuthService.login(email.trim(), password);
-      await setAuth(res.access_token, {
-        id: res.user.id,
-        email: res.user.email,
-        full_name: res.user.full_name,
-      });
+      await setAuth(
+        res.access_token,
+        {
+          id: res.user.id,
+          email: res.user.email,
+          full_name: res.user.full_name,
+        },
+        res.refresh_token
+      );
       setSuccessMsg('Welcome back!');
       setTimeout(() => {
         onClose();
@@ -152,11 +160,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMsg(null);
     try {
       const res = await AuthService.register(email.trim(), password, fullName.trim() || undefined);
-      await setAuth(res.access_token, {
-        id: res.user.id,
-        email: res.user.email,
-        full_name: res.user.full_name,
-      });
+      await setAuth(
+        res.access_token,
+        {
+          id: res.user.id,
+          email: res.user.email,
+          full_name: res.user.full_name,
+        },
+        res.refresh_token
+      );
       setSuccessMsg('Account created successfully!');
       setTimeout(() => {
         onClose();

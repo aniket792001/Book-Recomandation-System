@@ -18,10 +18,11 @@ import { BookService, Book } from '../../src/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-// Seed sample books using database UUIDs for instant rendering and offline continuity
+// Seed sample books using verified cloud database UUIDs and Gutenberg IDs
 export const SAMPLE_BOOKS: Book[] = [
   {
-    id: '1225e17a-6e38-4b1f-9601-7b75a93a5f90',
+    id: 'cf20061c-ce48-4828-a78f-367566d72aa0',
+    gutenberg_id: 1342,
     title: 'Pride and Prejudice',
     author: 'Jane Austen',
     cover_url: 'https://www.gutenberg.org/cache/epub/1342/pg1342.cover.medium.jpg',
@@ -32,7 +33,8 @@ export const SAMPLE_BOOKS: Book[] = [
     description: 'Pride and Prejudice follows the turbulent relationship between Elizabeth Bennet, the daughter of a country gentleman, and Fitzwilliam Darcy, a rich aristocratic landowner.',
   },
   {
-    id: '431e4f3f-2a17-4995-aa0f-d39eff6353b1',
+    id: '53ffcdb7-4f17-4a56-a063-5a6ee0d72a5f',
+    gutenberg_id: 84,
     title: 'Frankenstein',
     author: 'Mary Wollstonecraft Shelley',
     cover_url: 'https://www.gutenberg.org/cache/epub/84/pg84.cover.medium.jpg',
@@ -43,7 +45,8 @@ export const SAMPLE_BOOKS: Book[] = [
     description: 'Frankenstein tells the story of Victor Frankenstein, a young scientist who creates a sapient creature in an unorthodox scientific experiment.',
   },
   {
-    id: 'bea27171-3b4c-4253-8457-6d9a21254aff',
+    id: 'c372026c-bdd3-4a1a-9fc9-229ed0e664a0',
+    gutenberg_id: 64317,
     title: 'The Great Gatsby',
     author: 'F. Scott Fitzgerald',
     cover_url: 'https://www.gutenberg.org/cache/epub/64317/pg64317.cover.medium.jpg',
@@ -54,7 +57,8 @@ export const SAMPLE_BOOKS: Book[] = [
     description: 'The story primarily concerns the young and mysterious millionaire Jay Gatsby and his quixotic passion and obsession with Daisy Buchanan.',
   },
   {
-    id: '2411f8c4-ba26-4f91-890c-c8a45e07e55d',
+    id: 'bd71a705-b079-4743-a7dd-80dc2fa6f3d4',
+    gutenberg_id: 345,
     title: 'Dracula',
     author: 'Bram Stoker',
     cover_url: 'https://www.gutenberg.org/cache/epub/345/pg345.cover.medium.jpg',
@@ -65,7 +69,8 @@ export const SAMPLE_BOOKS: Book[] = [
     description: "The novel tells the story of Count Dracula's attempt to move from Transylvania to England so that he may find new blood and spread the undead curse.",
   },
   {
-    id: '37b4c52e-decd-4213-b9ea-7fcab7a1e3e8',
+    id: 'e0d129e8-7fd3-4f64-a483-cc53d7cbdc75',
+    gutenberg_id: 1661,
     title: 'The Adventures of Sherlock Holmes',
     author: 'Arthur Conan Doyle',
     cover_url: 'https://www.gutenberg.org/cache/epub/1661/pg1661.cover.medium.jpg',
@@ -76,7 +81,8 @@ export const SAMPLE_BOOKS: Book[] = [
     description: 'A collection of twelve short stories featuring the master consulting detective Sherlock Holmes and Dr. John H. Watson.',
   },
   {
-    id: 'cdb852f0-2c90-474a-af85-1c38a944a69e',
+    id: '6e86af91-ba02-420a-baa1-9a761f248e6b',
+    gutenberg_id: 11,
     title: "Alice's Adventures in Wonderland",
     author: 'Lewis Carroll',
     cover_url: 'https://www.gutenberg.org/cache/epub/11/pg11.cover.medium.jpg',
