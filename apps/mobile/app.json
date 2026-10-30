@@ -43,7 +43,8 @@
       },
       "eas": {
         "projectId": "8d0649d1-458b-4d2d-a122-7db46a3957fa"
-      }
+      },
+      "apiUrl": "https://book-recomandation-system.onrender.com/api/v1"
     }
   }
 }

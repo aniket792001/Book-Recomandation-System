@@ -112,8 +112,17 @@ export default function ReaderScreen() {
     isError: isContentError,
     refetch: refetchContent,
   } = useQuery<BookContentResponse>({
-    queryKey: ['book-content', bookId],
-    queryFn: () => BookService.getContent(bookId as string),
+    queryKey: ['book-content', bookId, currentBook?.gutenberg_id],
+    queryFn: async () => {
+      try {
+        return await BookService.getContent(bookId as string);
+      } catch (err) {
+        if (currentBook?.gutenberg_id && String(currentBook.gutenberg_id) !== String(bookId)) {
+          return await BookService.getContent(String(currentBook.gutenberg_id));
+        }
+        throw err;
+      }
+    },
     enabled: !!bookId,
     retry: 1,
     staleTime: 1000 * 60 * 60 * 24, // 24 hours

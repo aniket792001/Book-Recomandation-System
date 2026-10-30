@@ -4,23 +4,33 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../store/useAuthStore';
 
+const PRODUCTION_API_URL = 'https://book-recomandation-system.onrender.com/api/v1';
+
 const getBaseUrl = (): string => {
-  // If an explicit remote cloud API URL is set in .env (e.g. Render, Railway), use it everywhere!
+  // 1. If an explicit remote cloud API URL is set in .env (e.g. Render), use it
   if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.startsWith('https://')) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
 
+  // 2. Web browser development
   if (Platform.OS === 'web') {
-    return 'http://localhost:8000/api/v1';
+    return process.env.EXPO_PUBLIC_API_URL || PRODUCTION_API_URL;
   }
 
-  // Automatically extract the host machine IP when developing locally in Expo Go
-  const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
-  if (expoHost) {
-    return `http://${expoHost}:8000/api/v1`;
+  // 3. Local Expo Go development (only active in __DEV__ mode with hostUri)
+  if (__DEV__) {
+    const expoHost = Constants.expoConfig?.hostUri?.split(':')[0];
+    if (expoHost && !process.env.EXPO_PUBLIC_API_URL) {
+      return `http://${expoHost}:8000/api/v1`;
+    }
   }
 
-  return process.env.EXPO_PUBLIC_API_URL || 'http://10.214.175.24:8000/api/v1';
+  // 4. Default for Standalone APK and Production Builds -> Render Cloud Backend
+  return (
+    process.env.EXPO_PUBLIC_API_URL ||
+    Constants.expoConfig?.extra?.apiUrl ||
+    PRODUCTION_API_URL
+  );
 };
 
 const API_BASE_URL = getBaseUrl();
