@@ -105,6 +105,9 @@ export default function ReaderScreen() {
     initialData: sampleFallback,
   });
 
+  const currentBook = offlineBook || remoteBook || sampleFallback;
+  const currentGutenbergId = currentBook?.gutenberg_id;
+
   // Query authentic unabridged novel text and chapters from backend / Gutenberg
   const {
     data: bookContent,
@@ -112,13 +115,13 @@ export default function ReaderScreen() {
     isError: isContentError,
     refetch: refetchContent,
   } = useQuery<BookContentResponse>({
-    queryKey: ['book-content', bookId, currentBook?.gutenberg_id],
+    queryKey: ['book-content', bookId, currentGutenbergId],
     queryFn: async () => {
       try {
         return await BookService.getContent(bookId as string);
       } catch (err) {
-        if (currentBook?.gutenberg_id && String(currentBook.gutenberg_id) !== String(bookId)) {
-          return await BookService.getContent(String(currentBook.gutenberg_id));
+        if (currentGutenbergId && String(currentGutenbergId) !== String(bookId)) {
+          return await BookService.getContent(String(currentGutenbergId));
         }
         throw err;
       }
@@ -128,7 +131,6 @@ export default function ReaderScreen() {
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
   });
 
-  const currentBook = offlineBook || remoteBook || sampleFallback;
   const bookTitle = bookContent?.title || currentBook?.title || 'Classical Masterpiece';
   const bookAuthor = bookContent?.author || currentBook?.author || 'Project Gutenberg';
   const bookCover = currentBook?.cover_url;

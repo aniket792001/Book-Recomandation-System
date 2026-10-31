@@ -9,6 +9,7 @@ export interface DownloadedBook {
   author: string;
   cover_url?: string;
   download_url?: string;
+  gutenberg_id?: number | null;
   format: string;
   downloadedAt: string;
 }
@@ -32,7 +33,7 @@ interface LibraryState {
   readerTheme: ReaderThemeKey;
   setReaderFontSize: (size: number) => void;
   setReaderTheme: (theme: ReaderThemeKey) => void;
-  saveDownloadedBook: (book: { id: string; title: string; author: string; cover_url?: string; format?: string; download_url?: string }) => Promise<void>;
+  saveDownloadedBook: (book: { id: string; title: string; author: string; cover_url?: string; format?: string; download_url?: string; gutenberg_id?: number | null }) => Promise<void>;
   removeDownloadedBook: (bookId: string) => Promise<void>;
   saveReadingProgress: (item: { bookId: string; title: string; author: string; cover_url?: string; currentPage: number; totalPages: number; progressPercentage: number }) => Promise<void>;
   markBookDownloaded: (bookId: string) => Promise<void>;
@@ -64,6 +65,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       author: book.author,
       cover_url: book.cover_url,
       download_url: book.download_url,
+      gutenberg_id: book.gutenberg_id,
       format: book.format || 'epub',
       downloadedAt: new Date().toISOString(),
     };
