@@ -79,6 +79,42 @@ async def list_books(
                         db.add(new_b)
                         items.append(new_b)
                         existing_titles.add(t.lower())
+
+                    # If OpenLibrary yielded fewer than 5 items, query Google Books API
+                    if len(items) < 5:
+                        gb_res = await client.get(
+                            f"https://www.googleapis.com/books/v1/volumes?q={search}&maxResults=10"
+                        )
+                        if gb_res.status_code == 200:
+                            gb_items = gb_res.json().get("items", [])
+                            for g in gb_items:
+                                vol = g.get("volumeInfo", {})
+                                gt = vol.get("title")
+                                if not gt or gt.lower() in existing_titles:
+                                    continue
+                                g_authors = vol.get("authors", ["Global Author"])
+                                img_links = vol.get("imageLinks", {})
+                                g_cover = img_links.get("thumbnail") or img_links.get("smallThumbnail")
+                                if g_cover and g_cover.startswith("http://"):
+                                    g_cover = g_cover.replace("http://", "https://")
+                                g_desc = vol.get("description", f"Worldwide edition of {gt} by {g_authors[0]}.")
+                                rating = float(vol.get("averageRating", 4.7))
+                                rating_cnt = int(vol.get("ratingsCount", 25000))
+
+                                new_gb = Book(
+                                    title=gt,
+                                    author=g_authors[0],
+                                    cover_url=g_cover,
+                                    format="epub",
+                                    description=g_desc[:1000],
+                                    language=vol.get("language", "en"),
+                                    avg_rating=rating,
+                                    rating_count=rating_cnt,
+                                )
+                                db.add(new_gb)
+                                items.append(new_gb)
+                                existing_titles.add(gt.lower())
+
                     await db.commit()
         except Exception:
             pass  # Fallback gracefully to existing items if OpenLibrary network is slow

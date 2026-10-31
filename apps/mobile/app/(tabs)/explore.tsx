@@ -13,51 +13,62 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, BorderRadius, Spacing, Typography } from '../../src/constants/theme';
 import { BookCard } from '../../src/components/BookCard';
 import { BookService, Book } from '../../src/services/api';
+import { useAppTheme } from '../../src/store/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
 
-const MOOD_FILTERS = [
+type SearchMode = 'global' | 'semantic';
+
+const CATEGORY_CHIPS = [
+  'All Books',
+  'Sci-Fi & Cyberpunk',
   'Victorian Mystery',
   'Gothic Horror',
-  'Romantic Classic',
   'Existential Philosophy',
+  'Epic Fantasy',
+  'Classic Romance',
   'Adventure & Sea',
-  'Dystopian Future',
+  'Psychology & Mind',
 ];
 
 export default function ExploreScreen() {
+  const { colors, isDark } = useAppTheme();
+  const [searchMode, setSearchMode] = useState<SearchMode>('global');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [selectedChip, setSelectedChip] = useState<string>('All Books');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Book[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  const handleSearch = async (queryText?: string) => {
-    const q = queryText || searchQuery;
-    if (!q.trim()) return;
+  const handleSearch = async (queryText?: string, modeOverride?: SearchMode) => {
+    const q = (queryText !== undefined ? queryText : searchQuery).trim();
+    const mode = modeOverride || searchMode;
+    if (!q) return;
 
     setLoading(true);
+    setHasSearched(true);
     try {
-      // 1. Search catalog & global API (OpenLibrary / Gutenberg)
-      const catalogRes = await BookService.getAll(1, 20, q.trim());
-      const catalogBooks = catalogRes?.items || [];
+      if (mode === 'global') {
+        // Query global multi-provider catalog (DB + Open Library + Google Books API)
+        const catalogRes = await BookService.getAll(1, 24, q);
+        setResults(catalogRes?.items || []);
+      } else {
+        // Semantic AI vector recommendation
+        let semanticBooks: Book[] = [];
+        try {
+          const semRes = await BookService.semanticSearch(q, 14);
+          if (semRes && semRes.length > 0) {
+            semanticBooks = semRes.map((r: any) => r.book);
+          }
+        } catch (_) {}
 
-      // 2. Search semantic recommendations
-      let semanticBooks: Book[] = [];
-      try {
-        const semRes = await BookService.semanticSearch(q.trim(), 10);
-        if (semRes && semRes.length > 0) {
-          semanticBooks = semRes.map((r: any) => r.book);
-        }
-      } catch (_) {}
-
-      // Combine and deduplicate
-      const combined = [...catalogBooks];
-      for (const sb of semanticBooks) {
-        if (!combined.some((b) => b.id === sb.id || b.title.toLowerCase() === sb.title.toLowerCase())) {
-          combined.push(sb);
+        if (semanticBooks.length > 0) {
+          setResults(semanticBooks);
+        } else {
+          // Fallback to catalog if vector embeddings query is too abstract
+          const fallbackRes = await BookService.getAll(1, 14, q);
+          setResults(fallbackRes?.items || []);
         }
       }
-
-      setResults(combined);
     } catch (e) {
       console.log('Search fallback:', e);
       setResults([]);
@@ -66,69 +77,158 @@ export default function ExploreScreen() {
     }
   };
 
-  const handleSelectMood = (mood: string) => {
-    if (selectedMood === mood) {
-      setSelectedMood(null);
+  const handleSelectChip = (chip: string) => {
+    setSelectedChip(chip);
+    if (chip === 'All Books') {
       setSearchQuery('');
+      setResults([]);
+      setHasSearched(false);
     } else {
-      setSelectedMood(mood);
-      setSearchQuery(mood);
-      handleSearch(mood);
+      setSearchQuery(chip);
+      handleSearch(chip);
     }
   };
 
+  const handleModeSwitch = (mode: SearchMode) => {
+    setSearchMode(mode);
+    if (searchQuery.trim()) {
+      handleSearch(searchQuery, mode);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setResults([]);
+    setSelectedChip('All Books');
+    setHasSearched(false);
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Top Search Bar */}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.canvas }]} edges={['top']}>
+      {/* Header & Mode Switcher */}
       <View style={styles.searchHeader}>
-        <Text style={styles.headerTitle}>Semantic Exploration</Text>
-        <Text style={styles.headerSubtitle}>
-          Describe a vibe, emotion, or theme in natural language
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Explore & Search</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+          {searchMode === 'global'
+            ? 'Search any novel, author, or classic across 20+ million books'
+            : 'Find books using natural language vibes, emotions, and plot themes'}
         </Text>
 
-        <View style={styles.inputContainer}>
+        {/* Dual Mode Switcher */}
+        <View style={[styles.modeSwitcher, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+          <TouchableOpacity
+            style={[
+              styles.modeTab,
+              searchMode === 'global' && { backgroundColor: Colors.primary },
+            ]}
+            onPress={() => handleModeSwitch('global')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="globe-outline"
+              size={15}
+              color={searchMode === 'global' ? '#FFF' : colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.modeTabText,
+                searchMode === 'global' ? styles.modeActiveText : { color: colors.textSecondary },
+              ]}
+            >
+              Global Catalog
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.modeTab,
+              searchMode === 'semantic' && { backgroundColor: Colors.primary },
+            ]}
+            onPress={() => handleModeSwitch('semantic')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="sparkles"
+              size={15}
+              color={searchMode === 'semantic' ? '#FFF' : colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.modeTabText,
+                searchMode === 'semantic' ? styles.modeActiveText : { color: colors.textSecondary },
+              ]}
+            >
+              AI Semantic Vibe
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Search Input Bar */}
+        <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Ionicons name="search" size={20} color={Colors.primary} />
           <TextInput
-            style={styles.searchInput}
-            placeholder="e.g. A melancholic story about pride and social classes..."
-            placeholderTextColor={Colors.dark.textSecondary}
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+            placeholder={
+              searchMode === 'global'
+                ? 'Type any book title, author, or novel...'
+                : 'e.g. A melancholic story about pride and social classes...'
+            }
+            placeholderTextColor={colors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
             onSubmitEditing={() => handleSearch()}
             returnKeyType="search"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color={Colors.dark.textSecondary} />
+            <TouchableOpacity onPress={clearSearch} style={{ padding: 4 }}>
+              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Mood Chips */}
+      {/* Category / Mood Chips */}
       <View style={styles.chipsSection}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsContent}>
-          {MOOD_FILTERS.map((mood, idx) => {
-            const isSelected = selectedMood === mood;
+          {CATEGORY_CHIPS.map((chip, idx) => {
+            const isSelected = selectedChip === chip;
             return (
               <TouchableOpacity
                 key={idx}
-                style={[styles.chip, isSelected && styles.activeChip]}
-                onPress={() => handleSelectMood(mood)}
+                style={[
+                  styles.chip,
+                  { backgroundColor: isSelected ? Colors.primary : colors.surface, borderColor: isSelected ? Colors.primary : colors.border },
+                ]}
+                onPress={() => handleSelectChip(chip)}
                 activeOpacity={0.75}
               >
-                <Text style={[styles.chipText, isSelected && styles.activeChipText]}>{mood}</Text>
+                <Text style={[styles.chipText, { color: isSelected ? '#FFF' : colors.textSecondary }]}>
+                  {chip}
+                </Text>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
       </View>
 
+      {/* Result Count Status Bar */}
+      {hasSearched && !loading && (
+        <View style={styles.resultMetaRow}>
+          <Text style={[styles.resultMetaText, { color: colors.textSecondary }]}>
+            Found {results.length} books worldwide matching "{searchQuery}"
+          </Text>
+        </View>
+      )}
+
       {/* Results View */}
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Searching library via vector embeddings...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            {searchMode === 'global'
+              ? 'Querying global book database & Project Gutenberg...'
+              : 'Synthesizing literary embeddings with AI...'}
+          </Text>
         </View>
       ) : results.length > 0 ? (
         <FlatList
@@ -141,13 +241,22 @@ export default function ExploreScreen() {
             </View>
           )}
           contentContainerStyle={styles.resultsGrid}
+          showsVerticalScrollIndicator={false}
         />
+      ) : hasSearched ? (
+        <View style={styles.centerContainer}>
+          <Ionicons name="search-outline" size={44} color={colors.textSecondary} />
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Matches Found</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+            Try searching with broader terms or check the spelling of the title/author.
+          </Text>
+        </View>
       ) : (
         <View style={styles.centerContainer}>
-          <Ionicons name="compass-outline" size={48} color={Colors.dark.secondary} />
-          <Text style={styles.emptyTitle}>Find Your Next Great Read</Text>
-          <Text style={styles.emptySubtitle}>
-            Type a book concept or pick a mood chip above to start semantic vector search.
+          <Ionicons name="compass-outline" size={54} color={Colors.primary} />
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Explore Any Book or Novel</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+            Search worldwide titles in Global Catalog mode, or switch to AI Semantic Vibe to discover stories matching your mood.
           </Text>
         </View>
       )}
@@ -158,42 +267,63 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.canvas,
   },
   searchHeader: {
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
-    paddingBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
   },
   headerTitle: {
     ...Typography.title,
-    color: Colors.dark.textPrimary,
+    fontSize: 22,
+    fontWeight: '700',
   },
   headerSubtitle: {
     ...Typography.caption,
-    color: Colors.dark.textSecondary,
     marginTop: 2,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
+    lineHeight: 16,
+  },
+  modeSwitcher: {
+    flexDirection: 'row',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    padding: 3,
+    marginBottom: Spacing.sm,
+  },
+  modeTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    borderRadius: BorderRadius.sm,
+  },
+  modeTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  modeActiveText: {
+    color: '#FFF',
+    fontWeight: '700',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.dark.surface,
     borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
     height: 48,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
     gap: Spacing.sm,
   },
   searchInput: {
     flex: 1,
-    color: Colors.dark.textPrimary,
     fontSize: 14,
   },
   chipsSection: {
     maxHeight: 46,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   chipsContent: {
     paddingHorizontal: Spacing.md,
@@ -203,21 +333,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.dark.surface,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
-  },
-  activeChip: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   chipText: {
-    color: Colors.dark.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
-  activeChipText: {
-    color: '#FFF',
+  resultMetaRow: {
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  resultMetaText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   resultsGrid: {
     paddingHorizontal: Spacing.md,
@@ -232,23 +360,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   loadingText: {
-    color: Colors.dark.textSecondary,
     fontSize: 13,
     marginTop: Spacing.sm,
+    textAlign: 'center',
   },
   emptyTitle: {
-    color: Colors.dark.textPrimary,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     marginTop: Spacing.sm,
   },
   emptySubtitle: {
-    color: Colors.dark.textSecondary,
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 18,
+    maxWidth: 280,
   },
 });

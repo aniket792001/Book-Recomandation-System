@@ -15,6 +15,7 @@ import { BookCard } from '../../src/components/BookCard';
 import { AICompanionModal } from '../../src/components/AICompanionModal';
 import { Colors, BorderRadius, Spacing, Typography } from '../../src/constants/theme';
 import { BookService, Book } from '../../src/services/api';
+import { useAppTheme } from '../../src/store/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -96,6 +97,7 @@ export const SAMPLE_BOOKS: Book[] = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
   const [aiModalVisible, setAiModalVisible] = useState(false);
 
   // Fetch popular books with fallback
@@ -108,18 +110,18 @@ export default function HomeScreen() {
   const booksToDisplay = popularBooks && popularBooks.length > 0 ? popularBooks : SAMPLE_BOOKS;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.canvas }]} edges={['top']}>
       <Header />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Hero Banner */}
-        <View style={styles.heroCard}>
+        <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.heroBadge}>
             <Ionicons name="sparkles" size={12} color="#FFF" />
             <Text style={styles.heroBadgeText}>AI-Powered Reading</Text>
           </View>
-          <Text style={styles.heroTitle}>Rediscover The Classics</Text>
-          <Text style={styles.heroSubtitle}>
+          <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Rediscover The Classics</Text>
+          <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
             Download verified public-domain EPUBs, read offline, and chat with your AI reading companion.
           </Text>
           <TouchableOpacity
@@ -134,26 +136,26 @@ export default function HomeScreen() {
 
         {/* Continue Reading Section */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Continue Reading</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Continue Reading</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/library' as any)}>
             <Text style={styles.seeAllText}>My Shelf</Text>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          style={styles.activeReadingCard}
+          style={[styles.activeReadingCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
           activeOpacity={0.85}
           onPress={() => router.push(`/reader/${SAMPLE_BOOKS[0].id}` as any)}
         >
-          <View style={styles.activeBookIcon}>
+          <View style={[styles.activeBookIcon, { backgroundColor: colors.surfaceElevated }]}>
             <Ionicons name="book" size={24} color={Colors.primary} />
           </View>
           <View style={styles.activeBookInfo}>
-            <Text style={styles.activeBookTitle} numberOfLines={1}>
+            <Text style={[styles.activeBookTitle, { color: colors.textPrimary }]} numberOfLines={1}>
               {SAMPLE_BOOKS[0].title}
             </Text>
-            <Text style={styles.activeBookAuthor}>{SAMPLE_BOOKS[0].author}</Text>
-            <View style={styles.progressBarWrapper}>
+            <Text style={[styles.activeBookAuthor, { color: colors.textSecondary }]}>{SAMPLE_BOOKS[0].author}</Text>
+            <View style={[styles.progressBarWrapper, { backgroundColor: colors.surfaceElevated }]}>
               <View style={[styles.progressBarFill, { width: '42%' }]} />
             </View>
           </View>
@@ -162,7 +164,7 @@ export default function HomeScreen() {
 
         {/* Trending Classics Section */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Trending Public Domain</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Trending Public Domain</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/explore' as any)}>
             <Text style={styles.seeAllText}>Browse All</Text>
           </TouchableOpacity>
@@ -183,7 +185,7 @@ export default function HomeScreen() {
 
         {/* Curated Recommendations */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Curated by PagePulse AI</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Curated by PagePulse AI</Text>
         </View>
 
         <View style={styles.curatedGrid}>

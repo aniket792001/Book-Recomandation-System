@@ -10,11 +10,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, BorderRadius, Spacing, Typography } from '../../src/constants/theme';
 import { useLibraryStore } from '../../src/store/useLibraryStore';
+import { useAppTheme } from '../../src/store/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const { colors } = useAppTheme();
   const [activeTab, setActiveTab] = useState<'reading' | 'downloaded'>('reading');
 
   const downloadedBooks = useLibraryStore((s) => s.downloadedBooks);
@@ -27,21 +29,21 @@ export default function LibraryScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.canvas }]} edges={['top']}>
       {/* Title */}
       <View style={styles.header}>
-        <Text style={styles.title}>My Bookshelf</Text>
-        <Text style={styles.subtitle}>Your digital library & offline reading vault</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>My Bookshelf</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Your digital library & offline reading vault</Text>
       </View>
 
       {/* Segmented Control */}
-      <View style={styles.segmentedControl}>
+      <View style={[styles.segmentedControl, { backgroundColor: colors.surfaceElevated }]}>
         <TouchableOpacity
           style={[styles.segmentBtn, activeTab === 'reading' && styles.activeSegmentBtn]}
           onPress={() => setActiveTab('reading')}
           activeOpacity={0.8}
         >
-          <Text style={[styles.segmentText, activeTab === 'reading' && styles.activeSegmentText]}>
+          <Text style={[styles.segmentText, activeTab === 'reading' ? styles.activeSegmentText : { color: colors.textSecondary }]}>
             Active Reading ({readingHistory.length})
           </Text>
         </TouchableOpacity>
@@ -50,7 +52,7 @@ export default function LibraryScreen() {
           onPress={() => setActiveTab('downloaded')}
           activeOpacity={0.8}
         >
-          <Text style={[styles.segmentText, activeTab === 'downloaded' && styles.activeSegmentText]}>
+          <Text style={[styles.segmentText, activeTab === 'downloaded' ? styles.activeSegmentText : { color: colors.textSecondary }]}>
             Downloaded ({downloadedBooks.length})
           </Text>
         </TouchableOpacity>
@@ -63,32 +65,32 @@ export default function LibraryScreen() {
               {readingHistory.map((item) => (
                 <TouchableOpacity
                   key={item.bookId}
-                  style={styles.shelfCard}
+                  style={[styles.shelfCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   activeOpacity={0.85}
                   onPress={() => router.push(`/reader/${item.bookId}?page=${item.currentPage}` as any)}
                 >
                   {item.cover_url ? (
                     <Image source={{ uri: item.cover_url }} style={styles.coverThumb} resizeMode="cover" />
                   ) : (
-                    <View style={styles.bookIconContainer}>
+                    <View style={[styles.bookIconContainer, { backgroundColor: colors.surfaceElevated }]}>
                       <Ionicons name="book" size={22} color={Colors.primary} />
                     </View>
                   )}
 
                   <View style={styles.bookInfo}>
-                    <Text style={styles.bookTitle} numberOfLines={1}>
+                    <Text style={[styles.bookTitle, { color: colors.textPrimary }]} numberOfLines={1}>
                       {item.title}
                     </Text>
-                    <Text style={styles.bookAuthor} numberOfLines={1}>
+                    <Text style={[styles.bookAuthor, { color: colors.textSecondary }]} numberOfLines={1}>
                       {item.author}
                     </Text>
                     <View style={styles.progressRow}>
-                      <View style={styles.progressBar}>
+                      <View style={[styles.progressBar, { backgroundColor: colors.surfaceElevated }]}>
                         <View style={[styles.progressFill, { width: `${item.progressPercentage}%` }]} />
                       </View>
                       <Text style={styles.progressText}>{item.progressPercentage}%</Text>
                     </View>
-                    <Text style={styles.pageLabel}>
+                    <Text style={[styles.pageLabel, { color: colors.textSecondary }]}>
                       Page {item.currentPage} of {item.totalPages}
                     </Text>
                   </View>
@@ -126,23 +128,23 @@ export default function LibraryScreen() {
               {downloadedBooks.map((book) => (
                 <TouchableOpacity
                   key={book.id}
-                  style={styles.shelfCard}
+                  style={[styles.shelfCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   activeOpacity={0.85}
                   onPress={() => router.push(`/reader/${book.id}` as any)}
                 >
                   {book.cover_url ? (
                     <Image source={{ uri: book.cover_url }} style={styles.coverThumb} resizeMode="cover" />
                   ) : (
-                    <View style={styles.bookIconContainer}>
+                    <View style={[styles.bookIconContainer, { backgroundColor: colors.surfaceElevated }]}>
                       <Ionicons name="cloud-done" size={22} color={Colors.status.success} />
                     </View>
                   )}
 
                   <View style={styles.bookInfo}>
-                    <Text style={styles.bookTitle} numberOfLines={1}>
+                    <Text style={[styles.bookTitle, { color: colors.textPrimary }]} numberOfLines={1}>
                       {book.title}
                     </Text>
-                    <Text style={styles.bookAuthor} numberOfLines={1}>
+                    <Text style={[styles.bookAuthor, { color: colors.textSecondary }]} numberOfLines={1}>
                       {book.author}
                     </Text>
                     <View style={styles.offlineBadgeRow}>
@@ -150,7 +152,7 @@ export default function LibraryScreen() {
                         <Ionicons name="checkmark-circle" size={12} color={Colors.status.success} />
                         <Text style={styles.offlineBadgeText}>Offline Ready</Text>
                       </View>
-                      <Text style={styles.formatBadgeText}>{book.format.toUpperCase()}</Text>
+                      <Text style={[styles.formatBadgeText, { color: colors.textSecondary }]}>{book.format.toUpperCase()}</Text>
                     </View>
                   </View>
 
@@ -165,7 +167,7 @@ export default function LibraryScreen() {
                       style={styles.deleteBtn}
                       onPress={() => removeDownloadedBook(book.id)}
                     >
-                      <Ionicons name="trash-outline" size={16} color={Colors.dark.textSecondary} />
+                      <Ionicons name="trash-outline" size={16} color={colors.textSecondary} />
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>

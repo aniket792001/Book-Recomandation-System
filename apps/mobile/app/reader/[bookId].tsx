@@ -533,24 +533,55 @@ export default function ReaderScreen() {
         </SafeAreaView>
       )}
 
-      {/* Floating Audio Player Toolbar */}
+      {/* Audible-Style Floating Audio Player Pill */}
       {ttsBarVisible && (
-        <View style={[styles.audioPlayerCard, { backgroundColor: readerTheme === 'night' ? '#1E293B' : '#F8FAFC' }]}>
+        <View
+          style={[
+            styles.audioPlayerCard,
+            {
+              backgroundColor: readerTheme === 'night' ? '#1E293B' : '#FFFFFF',
+              borderColor: readerTheme === 'night' ? 'rgba(226, 133, 195, 0.35)' : 'rgba(226, 133, 195, 0.45)',
+            },
+          ]}
+        >
           <View style={styles.audioInfo}>
-            <Ionicons name="volume-medium" size={18} color={Colors.primary} />
-            <Text style={[styles.audioTitle, { color: readerTheme === 'night' ? '#F8FAFC' : '#0F172A' }]} numberOfLines={1}>
-              {currentChapterTitle}
-            </Text>
+            <View style={styles.audioIconBadge}>
+              <Ionicons name={isSpeaking ? 'radio' : 'volume-medium'} size={15} color="#FFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[
+                  styles.audioTitle,
+                  { color: readerTheme === 'night' ? '#F8FAFC' : '#0F172A' },
+                ]}
+                numberOfLines={1}
+              >
+                {currentChapterTitle}
+              </Text>
+              <Text
+                style={[
+                  styles.audioSubText,
+                  { color: readerTheme === 'night' ? '#94A3B8' : '#64748B' },
+                ]}
+              >
+                {isSpeaking ? 'Reading Aloud...' : 'Narration Paused'}
+              </Text>
+            </View>
           </View>
+
           <View style={styles.audioControls}>
-            <TouchableOpacity onPress={handleSpeechRateCycle} style={styles.rateBtn}>
+            <TouchableOpacity onPress={handleSpeechRateCycle} style={styles.rateBtn} activeOpacity={0.75}>
               <Text style={styles.rateText}>{speechRate}x</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={toggleSpeech} style={styles.playPauseBtn}>
-              <Ionicons name={isSpeaking ? 'pause' : 'play'} size={20} color="#FFF" />
+            <TouchableOpacity onPress={toggleSpeech} style={styles.playPauseBtn} activeOpacity={0.85}>
+              <Ionicons name={isSpeaking ? 'pause' : 'play'} size={18} color="#FFF" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={stopSpeech} style={styles.stopBtn}>
-              <Ionicons name="close" size={18} color={readerTheme === 'night' ? '#94A3B8' : '#64748B'} />
+            <TouchableOpacity onPress={stopSpeech} style={styles.stopBtn} activeOpacity={0.75}>
+              <Ionicons
+                name="close"
+                size={18}
+                color={readerTheme === 'night' ? '#94A3B8' : '#64748B'}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -853,34 +884,51 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   audioPlayerCard: {
+    position: 'absolute',
+    bottom: 95,
+    left: Spacing.md,
+    right: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
-    marginHorizontal: Spacing.md,
-    marginBottom: Spacing.xs,
-    borderRadius: BorderRadius.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 999,
   },
   audioInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     flex: 1,
+    marginRight: 10,
+  },
+  audioIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   audioTitle: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  audioSubText: {
+    fontSize: 10,
+    marginTop: 1,
   },
   audioControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   rateBtn: {
     paddingHorizontal: 8,

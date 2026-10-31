@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors, Spacing, Typography } from '../constants/theme';
+import { useAppTheme } from '../store/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -11,29 +12,30 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ title = 'PagePulse AI', showSearch = true }) => {
   const router = useRouter();
+  const { colors } = useAppTheme();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.canvas }]}>
       <View style={styles.brandRow}>
         <View style={styles.logoBadge}>
           <Ionicons name="sparkles" size={16} color="#FFF" />
         </View>
-        <Text style={styles.brandTitle}>{title}</Text>
+        <Text style={[styles.brandTitle, { color: colors.textPrimary }]}>{title}</Text>
       </View>
 
       <View style={styles.actions}>
         {showSearch && (
           <TouchableOpacity
-            style={styles.iconButton}
+            style={[styles.iconButton, { backgroundColor: colors.surface }]}
             onPress={() => router.push('/(tabs)/explore' as any)}
             activeOpacity={0.7}
           >
-            <Ionicons name="search" size={20} color={Colors.dark.textPrimary} />
+            <Ionicons name="search" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
         )}
-        <View style={styles.streakBadge}>
+        <View style={[styles.streakBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Ionicons name="flame" size={16} color="#F97316" />
-          <Text style={styles.streakText}>3d</Text>
+          <Text style={[styles.streakText, { color: colors.textPrimary }]}>3d</Text>
         </View>
       </View>
     </View>

@@ -10,12 +10,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, BorderRadius, Spacing, Typography } from '../../src/constants/theme';
 import { useLibraryStore, ReaderThemeKey } from '../../src/store/useLibraryStore';
 import { useAuthStore } from '../../src/store/useAuthStore';
+import { useThemeStore, useAppTheme, AppThemeMode } from '../../src/store/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthModal } from '../../src/components/AuthModal';
 
 export default function ProfileScreen() {
   const { readerTheme, readerFontSize, setReaderTheme, setReaderFontSize, readingHistory } = useLibraryStore();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { colors, isDark } = useAppTheme();
+  const { themeMode, setThemeMode } = useThemeStore();
   const [authVisible, setAuthVisible] = useState(false);
   const [authMode, setAuthMode] = useState<'otp' | 'password' | 'register'>('otp');
 
@@ -47,11 +50,11 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.canvas }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Card / Auth Prompt */}
         {isAuthenticated ? (
-          <View style={styles.profileHeader}>
+          <View style={[styles.profileHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.avatar}>
               <Ionicons name="person" size={32} color="#FFF" />
             </View>
@@ -59,28 +62,28 @@ export default function ProfileScreen() {
               <Ionicons name="cloud-done" size={12} color={Colors.status.success} />
               <Text style={styles.userStatusText}>Cloud Synced</Text>
             </View>
-            <Text style={styles.userName}>{user?.full_name || 'Avid Reader'}</Text>
-            <Text style={styles.userEmail}>{user?.email}</Text>
+            <Text style={[styles.userName, { color: colors.textPrimary }]}>{user?.full_name || 'Avid Reader'}</Text>
+            <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{user?.email}</Text>
 
-            <View style={styles.statsRow}>
+            <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{activeBooksCount}</Text>
-                <Text style={styles.statLabel}>Active Books</Text>
+                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{activeBooksCount}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active Books</Text>
               </View>
-              <View style={styles.statDivider} />
+              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{totalPagesTurned}</Text>
-                <Text style={styles.statLabel}>Pages Read</Text>
+                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{totalPagesTurned}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Pages Read</Text>
               </View>
-              <View style={styles.statDivider} />
+              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{readingStreakDays > 0 ? `${readingStreakDays}d` : '1d'}</Text>
-                <Text style={styles.statLabel}>Reading Streak</Text>
+                <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{readingStreakDays > 0 ? `${readingStreakDays}d` : '1d'}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Reading Streak</Text>
               </View>
             </View>
           </View>
         ) : (
-          <View style={styles.guestCard}>
+          <View style={[styles.guestCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.guestIconRow}>
               <View style={styles.guestBadge}>
                 <Ionicons name="sparkles" size={20} color="#FFF" />
@@ -177,10 +180,45 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* Reader Preferences */}
-        <Text style={styles.sectionHeader}>Reader Appearance</Text>
-        <View style={styles.settingCard}>
-          <Text style={styles.settingTitle}>Default Reading Canvas</Text>
+        {/* App Theme & Reader Preferences */}
+        <Text style={[styles.sectionHeader, { color: colors.textPrimary }]}>Appearance & Theme</Text>
+        <View style={[styles.settingCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Application Theme</Text>
+          <View style={styles.appThemeToggleRow}>
+            {(
+              [
+                { mode: 'dark', label: 'Dark', icon: 'moon' },
+                { mode: 'light', label: 'Light', icon: 'sunny' },
+                { mode: 'system', label: 'System', icon: 'phone-portrait' },
+              ] as const
+            ).map((item) => {
+              const active = themeMode === item.mode;
+              return (
+                <TouchableOpacity
+                  key={item.mode}
+                  style={[
+                    styles.appThemeBtn,
+                    { backgroundColor: active ? Colors.primary : colors.surfaceElevated, borderColor: colors.border },
+                  ]}
+                  onPress={() => setThemeMode(item.mode)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={item.icon as any}
+                    size={16}
+                    color={active ? '#FFFFFF' : colors.textSecondary}
+                  />
+                  <Text style={[styles.appThemeBtnText, { color: active ? '#FFFFFF' : colors.textPrimary }]}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Default Reading Canvas</Text>
           <View style={styles.themeRow}>
             {themes.map((t) => (
               <TouchableOpacity
@@ -198,22 +236,22 @@ export default function ProfileScreen() {
             ))}
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-          <Text style={styles.settingTitle}>Default Font Size ({readerFontSize}pt)</Text>
+          <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Default Font Size ({readerFontSize}pt)</Text>
           <View style={styles.stepperRow}>
             <TouchableOpacity
-              style={styles.stepBtn}
+              style={[styles.stepBtn, { backgroundColor: colors.surfaceElevated }]}
               onPress={() => setReaderFontSize(Math.max(12, readerFontSize - 1))}
             >
-              <Ionicons name="remove" size={18} color={Colors.dark.textPrimary} />
+              <Ionicons name="remove" size={18} color={colors.textPrimary} />
             </TouchableOpacity>
-            <Text style={styles.stepValue}>{readerFontSize}</Text>
+            <Text style={[styles.stepValue, { color: colors.textPrimary }]}>{readerFontSize}</Text>
             <TouchableOpacity
-              style={styles.stepBtn}
+              style={[styles.stepBtn, { backgroundColor: colors.surfaceElevated }]}
               onPress={() => setReaderFontSize(Math.min(28, readerFontSize + 1))}
             >
-              <Ionicons name="add" size={18} color={Colors.dark.textPrimary} />
+              <Ionicons name="add" size={18} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -605,5 +643,25 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: Colors.dark.textSecondary,
     textAlign: 'center',
+  },
+  appThemeToggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  appThemeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  appThemeBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
