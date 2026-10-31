@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, BorderRadius, Spacing, Typography } from '../../src/constants/theme';
 import { BookService, Book } from '../../src/services/api';
 import { useLibraryStore } from '../../src/store/useLibraryStore';
+import { useAppTheme } from '../../src/store/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
 import { AICompanionModal } from '../../src/components/AICompanionModal';
 import { SAMPLE_BOOKS } from '../(tabs)/index';
@@ -22,13 +24,31 @@ import { SAMPLE_BOOKS } from '../(tabs)/index';
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
   const [downloading, setDownloading] = useState(false);
   const [aiModalVisible, setAiModalVisible] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+
   const saveDownloadedBook = useLibraryStore((s) => s.saveDownloadedBook);
   const downloadedBooks = useLibraryStore((s) => s.downloadedBooks);
   const downloadedBookIds = useLibraryStore((s) => s.downloadedBookIds);
 
   const isDownloaded = id ? downloadedBookIds.includes(id) : false;
+
+  useEffect(() => {
+    if (id) {
+      AsyncStorage.getItem(`bookmarked_${id}`).then((val) => {
+        setIsBookmarked(val === 'true');
+      });
+    }
+  }, [id]);
+
+  const handleToggleBookmark = async () => {
+    if (!id) return;
+    const next = !isBookmarked;
+    setIsBookmarked(next);
+    await AsyncStorage.setItem(`bookmarked_${id}`, next ? 'true' : 'false');
+  };
 
   const foundOffline = downloadedBooks.find((b) => b.id === id);
   const fallbackBook: Book | undefined = foundOffline
@@ -41,6 +61,7 @@ export default function BookDetailScreen() {
         avg_rating: 4.8,
         rating_count: 1000,
         download_url: foundOffline.download_url,
+        gutenberg_id: foundOffline.gutenberg_id,
       }
     : SAMPLE_BOOKS.find((b) => b.id === id);
 
@@ -64,6 +85,7 @@ export default function BookDetailScreen() {
         cover_url: book.cover_url,
         format: book.format,
         download_url: book.download_url,
+        gutenberg_id: book.gutenberg_id,
       });
       alert(`"${book.title}" saved successfully for offline reading!`);
     } catch (e) {
@@ -84,7 +106,7 @@ export default function BookDetailScreen() {
 
   if (isLoading && !book) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.canvas }]}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </SafeAreaView>
     );
@@ -92,17 +114,17 @@ export default function BookDetailScreen() {
 
   if (!book) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.canvas }]}>
         <Ionicons name="alert-circle-outline" size={48} color={Colors.status.error} />
-        <Text style={[styles.title, { textAlign: 'center', marginTop: 12 }]}>
+        <Text style={[styles.title, { textAlign: 'center', marginTop: 12, color: colors.textPrimary }]}>
           Book Not Found
         </Text>
-        <Text style={[styles.description, { textAlign: 'center', marginBottom: 20 }]}>
+        <Text style={[styles.description, { textAlign: 'center', marginBottom: 20, color: colors.textSecondary }]}>
           We couldn't retrieve the details for this title from the library.
         </Text>
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <TouchableOpacity
-            style={[styles.readNowBtn, { backgroundColor: Colors.dark.surface }]}
+            style={[styles.readNowBtn, { backgroundColor: colors.surface }]}
             onPress={() => router.back()}
           >
             <Text style={styles.readNowText}>Go Back</Text>
@@ -116,54 +138,69 @@ export default function BookDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.canvas }]} edges={['top']}>
       {/* Top Navigation */}
       <View style={styles.navBar}>
-        <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.dark.textPrimary} />
+        <TouchableOpacity
+          style={[styles.navBtn, { backgroundColor: colors.surface }]}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.navActions}>
-          <TouchableOpacity style={styles.navBtn} onPress={handleShare}>
-            <Ionicons name="share-social-outline" size={20} color={Colors.dark.textPrimary} />
+          <TouchableOpacity
+            style={[styles.navBtn, { backgroundColor: colors.surface }]}
+            onPress={handleShare}
+          >
+            <Ionicons name="share-social-outline" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navBtn} onPress={() => setAiModalVisible(true)}>
-            <Ionicons name="sparkles" size={18} color={Colors.primary} />
+          <TouchableOpacity
+            style={[styles.navBtn, { backgroundColor: colors.surface }]}
+            onPress={handleToggleBookmark}
+          >
+            <Ionicons
+              name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
+              size={20}
+              color={isBookmarked ? Colors.primary : colors.textPrimary}
+            />
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Book Cover Hero */}
-        <View style={styles.coverWrapper}>
+        <View style={[styles.coverWrapper, { shadowColor: Colors.primary }]}>
           {book.cover_url ? (
             <Image source={{ uri: book.cover_url }} style={styles.coverImage} resizeMode="cover" />
           ) : (
-            <View style={styles.coverPlaceholder}>
+            <View style={[styles.coverPlaceholder, { backgroundColor: colors.surface }]}>
               <Ionicons name="book-outline" size={64} color={Colors.primary} />
             </View>
           )}
         </View>
 
         {/* Title & Author */}
-        <Text style={styles.title}>{book.title}</Text>
-        <Text style={styles.author}>By {book.author}</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>{book.title}</Text>
+        <Text style={[styles.author, { color: colors.textSecondary }]}>By {book.author}</Text>
 
         {/* Badges Row */}
         <View style={styles.badgeRow}>
-          <View style={styles.badge}>
+          <View style={[styles.badge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Ionicons name="star" size={14} color="#FBBF24" />
-            <Text style={styles.badgeText}>
+            <Text style={[styles.badgeText, { color: colors.textPrimary }]}>
               {book.avg_rating > 0 ? book.avg_rating.toFixed(1) : '4.8'}
             </Text>
           </View>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>English</Text>
+          <View style={[styles.badge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.badgeText, { color: colors.textPrimary }]}>English</Text>
           </View>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Public Domain</Text>
+          <View style={[styles.badge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.badgeText, { color: colors.textPrimary }]}>Public Domain</Text>
           </View>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{(book.format || 'EPUB').toUpperCase()}</Text>
+          <View style={[styles.badge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.badgeText, { color: colors.textPrimary }]}>
+              {(book.format || 'EPUB').toUpperCase()}
+            </Text>
           </View>
         </View>
 
@@ -179,7 +216,10 @@ export default function BookDetailScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.downloadBtn, isDownloaded && styles.downloadedBtn]}
+            style={[
+              styles.downloadBtn,
+              { backgroundColor: colors.surface, borderColor: isDownloaded ? Colors.status.success : Colors.primary },
+            ]}
             activeOpacity={0.85}
             onPress={handleDownload}
             disabled={downloading || isDownloaded}
@@ -196,7 +236,7 @@ export default function BookDetailScreen() {
                 <Text
                   style={[
                     styles.downloadText,
-                    isDownloaded && { color: Colors.status.success },
+                    { color: isDownloaded ? Colors.status.success : Colors.primary },
                   ]}
                 >
                   {isDownloaded ? 'Downloaded' : 'Save Offline'}
@@ -208,30 +248,54 @@ export default function BookDetailScreen() {
 
         {/* Synopsis / Description */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Synopsis</Text>
-          <Text style={styles.description}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Synopsis</Text>
+          <Text style={[styles.description, { color: colors.textSecondary }]}>
             {book.description ||
               'A recognized masterpiece of world literature available in the public domain via Project Gutenberg and PagePulse AI.'}
           </Text>
         </View>
 
-        {/* Ask Companion CTA Card */}
-        <TouchableOpacity
-          style={styles.aiBanner}
-          activeOpacity={0.85}
-          onPress={() => setAiModalVisible(true)}
-        >
-          <View style={styles.aiBadge}>
-            <Ionicons name="sparkles" size={18} color="#FFF" />
+        {/* AI Literary Studio Card (Consolidated Multi-Action Feature) */}
+        <View style={[styles.aiStudioCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.aiStudioHeader}>
+            <View style={styles.aiBadge}>
+              <Ionicons name="sparkles" size={16} color="#FFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.aiStudioTitle, { color: colors.textPrimary }]}>AI Literary Studio</Text>
+              <Text style={[styles.aiStudioSubtitle, { color: colors.textSecondary }]}>
+                Deep-dive into this book with your Gemini companion
+              </Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.aiBannerTitle}>Have questions about this book?</Text>
-            <Text style={styles.aiBannerSubtitle}>
-              Ask the AI Companion for themes, character maps, or historical context.
-            </Text>
+
+          <View style={styles.aiChipRow}>
+            <TouchableOpacity
+              style={[styles.aiActionChip, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+              onPress={() => setAiModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.aiActionChipText, { color: colors.textPrimary }]}>⚡ 3-Min Summary</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.aiActionChip, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+              onPress={() => setAiModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.aiActionChipText, { color: colors.textPrimary }]}>💡 Core Themes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.aiActionChipPrimary, { backgroundColor: Colors.primary }]}
+              onPress={() => setAiModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={14} color="#FFF" />
+              <Text style={styles.aiActionChipPrimaryText}>Ask AI</Text>
+            </TouchableOpacity>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.secondary} />
-        </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* AI Companion Modal */}
@@ -248,11 +312,9 @@ export default function BookDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.canvas,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: Colors.dark.canvas,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,
@@ -264,35 +326,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
+  navBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   navActions: {
     flexDirection: 'row',
     gap: Spacing.sm,
   },
-  navBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.dark.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   scrollContent: {
     padding: Spacing.md,
-    paddingBottom: 60,
+    paddingBottom: 40,
   },
   coverWrapper: {
-    alignSelf: 'center',
-    width: 180,
-    height: 260,
+    width: 170,
+    height: 250,
     borderRadius: BorderRadius.lg,
+    alignSelf: 'center',
+    marginVertical: Spacing.md,
     overflow: 'hidden',
-    backgroundColor: Colors.dark.surface,
-    marginBottom: Spacing.lg,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowRadius: 16,
+    elevation: 8,
   },
   coverImage: {
     width: '100%',
@@ -302,19 +361,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.dark.secondary,
   },
   title: {
-    ...Typography.hero,
-    fontSize: 22,
-    color: Colors.dark.textPrimary,
+    ...Typography.title,
     textAlign: 'center',
+    marginBottom: Spacing.xs,
   },
   author: {
-    color: Colors.dark.textSecondary,
-    fontSize: 15,
+    ...Typography.body,
     textAlign: 'center',
-    marginTop: 4,
     marginBottom: Spacing.md,
   },
   badgeRow: {
@@ -328,15 +383,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.dark.surface,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    borderColor: Colors.dark.border,
   },
   badgeText: {
-    color: Colors.dark.textPrimary,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -368,20 +420,14 @@ const styles = StyleSheet.create({
   downloadBtn: {
     flex: 1,
     height: 48,
-    backgroundColor: Colors.dark.surface,
     borderRadius: BorderRadius.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  downloadedBtn: {
-    borderColor: Colors.status.success,
   },
   downloadText: {
-    color: Colors.primary,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -391,40 +437,70 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...Typography.title,
     fontSize: 17,
-    color: Colors.dark.textPrimary,
     marginBottom: Spacing.sm,
   },
   description: {
     ...Typography.body,
-    color: Colors.dark.textSecondary,
     lineHeight: 22,
   },
-  aiBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.dark.surface,
+  aiStudioCard: {
     padding: Spacing.md,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: Colors.secondary,
-    gap: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  aiStudioHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: Spacing.sm,
   },
   aiBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.secondary,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  aiBannerTitle: {
-    color: Colors.dark.textPrimary,
+  aiStudioTitle: {
     fontSize: 14,
     fontWeight: '700',
   },
-  aiBannerSubtitle: {
-    color: Colors.dark.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
+  aiStudioSubtitle: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  aiChipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  aiActionChip: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiActionChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  aiActionChipPrimary: {
+    flexDirection: 'row',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: BorderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiActionChipPrimaryText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

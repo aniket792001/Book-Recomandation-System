@@ -152,7 +152,7 @@ export interface Book {
   format: string;
   avg_rating: number;
   rating_count: number;
-  gutenberg_id?: number;
+  gutenberg_id?: number | null;
 }
 
 export interface BookContentPage {
@@ -184,9 +184,15 @@ export const BookService = {
     return res.data;
   },
 
-  getAll: async (page = 1, size = 20, search?: string): Promise<{ items: Book[]; total: number }> => {
+  getAll: async (
+    page = 1,
+    size = 20,
+    search?: string,
+    language?: string
+  ): Promise<{ items: Book[]; total: number }> => {
     const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
-    const res = await api.get(`/books?page=${page}&size=${size}${searchParam}`);
+    const langParam = language && language !== 'all' ? `&language=${encodeURIComponent(language)}` : '';
+    const res = await api.get(`/books?page=${page}&size=${size}${searchParam}${langParam}`);
     return res.data;
   },
 

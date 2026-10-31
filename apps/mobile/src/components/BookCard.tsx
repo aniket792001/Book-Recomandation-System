@@ -9,9 +9,10 @@ import { useAppTheme } from '../store/useThemeStore';
 interface BookCardProps {
   book: Book;
   compact?: boolean;
+  grid?: boolean;
 }
 
-export const BookCard: React.FC<BookCardProps> = ({ book, compact = false }) => {
+export const BookCard: React.FC<BookCardProps> = ({ book, compact = false, grid = false }) => {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
 
@@ -19,15 +20,25 @@ export const BookCard: React.FC<BookCardProps> = ({ book, compact = false }) => 
     router.push(`/book/${book.id}` as any);
   };
 
-  const hasFullNovel = !!book.gutenberg_id || book.format === 'epub';
+  const isFullNovel = !!book.gutenberg_id;
 
   return (
     <TouchableOpacity
       activeOpacity={0.85}
       onPress={handlePress}
-      style={[styles.container, compact && styles.compactContainer]}
+      style={[
+        styles.container,
+        compact && styles.compactContainer,
+        grid && styles.gridContainer,
+      ]}
     >
-      <View style={[styles.imageWrapper, { backgroundColor: colors.surface, shadowColor: colors.primary }]}>
+      <View
+        style={[
+          styles.imageWrapper,
+          grid && styles.gridImageWrapper,
+          { backgroundColor: colors.surface, shadowColor: colors.primary },
+        ]}
+      >
         {book.cover_url ? (
           <Image source={{ uri: book.cover_url }} style={styles.coverImage} resizeMode="cover" />
         ) : (
@@ -45,12 +56,10 @@ export const BookCard: React.FC<BookCardProps> = ({ book, compact = false }) => 
           <Text style={styles.ratingText}>{book.avg_rating > 0 ? book.avg_rating.toFixed(1) : '4.8'}</Text>
         </View>
 
-        {/* Full Text / Global Badge */}
-        {hasFullNovel && (
-          <View style={styles.formatBadge}>
-            <Text style={styles.formatText}>FULL NOVEL</Text>
-          </View>
-        )}
+        {/* Truthful Availability Badge */}
+        <View style={[styles.formatBadge, !isFullNovel && styles.summaryBadge]}>
+          <Text style={styles.formatText}>{isFullNovel ? 'FULL NOVEL' : 'AI SUMMARY'}</Text>
+        </View>
       </View>
 
       <View style={styles.details}>
@@ -75,6 +84,11 @@ const styles = StyleSheet.create({
     width: 120,
     marginRight: Spacing.sm,
   },
+  gridContainer: {
+    width: '100%',
+    marginRight: 0,
+    marginBottom: Spacing.md,
+  },
   imageWrapper: {
     width: '100%',
     height: 210,
@@ -85,6 +99,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 8,
     elevation: 6,
+  },
+  gridImageWrapper: {
+    aspectRatio: 2 / 3,
+    height: undefined,
   },
   coverImage: {
     width: '100%',
@@ -126,6 +144,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+  },
+  summaryBadge: {
+    backgroundColor: 'rgba(129, 140, 248, 0.90)',
   },
   formatText: {
     color: '#FFF',

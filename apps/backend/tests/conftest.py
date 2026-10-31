@@ -9,7 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["SECRET_KEY"] = "test-secret-key-32-characters-minimum-for-testing-purposes"
 
-from app.core.database import Base, get_db
+import uuid
+from app.core.database import get_db
+from app.models.base import Base
 from app.main import app
 from app.models.book import Book
 from app.models.user import User
@@ -39,7 +41,7 @@ async def db_session():
     async with TestingSessionLocal() as session:
         # Seed a test book
         test_book = Book(
-            id="cf20061c-ce48-4828-a78f-367566d72aa0",
+            id=uuid.UUID("cf20061c-ce48-4828-a78f-367566d72aa0"),
             title="Pride and Prejudice",
             author="Jane Austen",
             gutenberg_id=1342,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams } from 'expo-router';
 import { Colors, BorderRadius, Spacing, Typography } from '../../src/constants/theme';
 import { BookCard } from '../../src/components/BookCard';
 import { BookService, Book } from '../../src/services/api';
@@ -17,6 +18,13 @@ import { useAppTheme } from '../../src/store/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
 
 type SearchMode = 'global' | 'semantic';
+
+const LANGUAGES = [
+  { code: 'all', label: '🌐 All Languages' },
+  { code: 'en', label: '🇬🇧 English' },
+  { code: 'hi', label: '🇮🇳 हिन्दी (Hindi)' },
+  { code: 'mr', label: '🚩 मराठी (Marathi)' },
+];
 
 const CATEGORY_CHIPS = [
   'All Books',
@@ -32,24 +40,41 @@ const CATEGORY_CHIPS = [
 
 export default function ExploreScreen() {
   const { colors, isDark } = useAppTheme();
-  const [searchMode, setSearchMode] = useState<SearchMode>('global');
+  const { mode: urlMode } = useLocalSearchParams<{ mode?: string }>();
+  const [searchMode, setSearchMode] = useState<SearchMode>(
+    urlMode === 'semantic' ? 'semantic' : 'global'
+  );
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedChip, setSelectedChip] = useState<string>('All Books');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Book[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
 
-  const handleSearch = async (queryText?: string, modeOverride?: SearchMode) => {
+  useEffect(() => {
+    if (urlMode === 'semantic') {
+      setSearchMode('semantic');
+    } else if (urlMode === 'global') {
+      setSearchMode('global');
+    }
+  }, [urlMode]);
+
+  const handleSearch = async (
+    queryText?: string,
+    modeOverride?: SearchMode,
+    languageOverride?: string
+  ) => {
     const q = (queryText !== undefined ? queryText : searchQuery).trim();
     const mode = modeOverride || searchMode;
-    if (!q) return;
+    const lang = languageOverride !== undefined ? languageOverride : selectedLanguage;
+    if (!q && lang === 'all') return;
 
     setLoading(true);
     setHasSearched(true);
     try {
       if (mode === 'global') {
         // Query global multi-provider catalog (DB + Open Library + Google Books API)
-        const catalogRes = await BookService.getAll(1, 24, q);
+        const catalogRes = await BookService.getAll(1, 24, q || undefined, lang);
         setResults(catalogRes?.items || []);
       } else {
         // Semantic AI vector recommendation
@@ -65,7 +90,7 @@ export default function ExploreScreen() {
           setResults(semanticBooks);
         } else {
           // Fallback to catalog if vector embeddings query is too abstract
-          const fallbackRes = await BookService.getAll(1, 14, q);
+          const fallbackRes = await BookService.getAll(1, 14, q || undefined, lang);
           setResults(fallbackRes?.items || []);
         }
       }
@@ -77,30 +102,43 @@ export default function ExploreScreen() {
     }
   };
 
+  const handleSelectLanguage = (langCode: string) => {
+    setSelectedLanguage(langCode);
+    handleSearch(searchQuery, searchMode, langCode);
+  };
+
   const handleSelectChip = (chip: string) => {
     setSelectedChip(chip);
     if (chip === 'All Books') {
       setSearchQuery('');
-      setResults([]);
-      setHasSearched(false);
+      if (selectedLanguage !== 'all') {
+        handleSearch('', searchMode, selectedLanguage);
+      } else {
+        setResults([]);
+        setHasSearched(false);
+      }
     } else {
       setSearchQuery(chip);
-      handleSearch(chip);
+      handleSearch(chip, searchMode, selectedLanguage);
     }
   };
 
   const handleModeSwitch = (mode: SearchMode) => {
     setSearchMode(mode);
-    if (searchQuery.trim()) {
-      handleSearch(searchQuery, mode);
+    if (searchQuery.trim() || selectedLanguage !== 'all') {
+      handleSearch(searchQuery, mode, selectedLanguage);
     }
   };
 
   const clearSearch = () => {
     setSearchQuery('');
-    setResults([]);
     setSelectedChip('All Books');
-    setHasSearched(false);
+    if (selectedLanguage !== 'all') {
+      handleSearch('', searchMode, selectedLanguage);
+    } else {
+      setResults([]);
+      setHasSearched(false);
+    }
   };
 
   return (
@@ -161,6 +199,39 @@ export default function ExploreScreen() {
               AI Semantic Vibe
             </Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Language Filter Chips */}
+        <View style={styles.languageSection}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.languageChipsContent}>
+            {LANGUAGES.map((lang) => {
+              const isSelected = selectedLanguage === lang.code;
+              return (
+                <TouchableOpacity
+                  key={lang.code}
+                  style={[
+                    styles.langChip,
+                    {
+                      backgroundColor: isSelected ? 'rgba(226, 133, 195, 0.18)' : colors.surface,
+                      borderColor: isSelected ? Colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => handleSelectLanguage(lang.code)}
+                  activeOpacity={0.75}
+                >
+                  <Text
+                    style={[
+                      styles.langChipText,
+                      { color: isSelected ? Colors.primary : colors.textSecondary },
+                      isSelected && { fontWeight: '700' },
+                    ]}
+                  >
+                    {lang.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
 
         {/* Search Input Bar */}
@@ -307,6 +378,21 @@ const styles = StyleSheet.create({
   modeActiveText: {
     color: '#FFF',
     fontWeight: '700',
+  },
+  languageSection: {
+    marginBottom: Spacing.sm,
+  },
+  languageChipsContent: {
+    gap: Spacing.xs,
+  },
+  langChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  langChipText: {
+    fontSize: 12,
   },
   inputContainer: {
     flexDirection: 'row',

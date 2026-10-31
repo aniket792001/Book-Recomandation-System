@@ -70,6 +70,3 @@ Thumbs.db
 # Legacy prototype
 Book-Recomandation-System/
 legacy/
-
-test/
-pytest.ini

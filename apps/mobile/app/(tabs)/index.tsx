@@ -126,11 +126,11 @@ export default function HomeScreen() {
           </Text>
           <TouchableOpacity
             style={styles.heroButton}
-            onPress={() => router.push('/(tabs)/explore' as any)}
+            onPress={() => router.push({ pathname: '/(tabs)/explore', params: { mode: 'semantic' } } as any)}
             activeOpacity={0.8}
           >
             <Text style={styles.heroButtonText}>Explore by Mood</Text>
-            <Ionicons name="arrow-forward" size={16} color="#FFF" />
+            <Ionicons name="sparkles" size={15} color="#FFF" />
           </TouchableOpacity>
         </View>
 
@@ -165,7 +165,7 @@ export default function HomeScreen() {
         {/* Trending Classics Section */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Trending Public Domain</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/explore' as any)}>
+          <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/explore', params: { mode: 'global' } } as any)}>
             <Text style={styles.seeAllText}>Browse All</Text>
           </TouchableOpacity>
         </View>
@@ -185,12 +185,19 @@ export default function HomeScreen() {
 
         {/* Curated Recommendations */}
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Curated by PagePulse AI</Text>
+          <View>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Curated by PagePulse AI</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+              Handpicked literature & verified classics
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.curatedGrid}>
+        <View style={styles.curatedTwoColGrid}>
           {booksToDisplay.slice(0, 4).map((book) => (
-            <BookCard key={book.id} book={book} compact />
+            <View key={book.id} style={styles.curatedColItem}>
+              <BookCard book={book} grid />
+            </View>
           ))}
         </View>
       </ScrollView>
@@ -341,11 +348,20 @@ const styles = StyleSheet.create({
   horizontalList: {
     paddingLeft: Spacing.md,
   },
-  curatedGrid: {
+  sectionSubtitle: {
+    ...Typography.caption,
+    marginTop: 2,
+    fontSize: 12,
+  },
+  curatedTwoColGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: Spacing.md,
     justifyContent: 'space-between',
+    paddingBottom: 70,
+  },
+  curatedColItem: {
+    width: '47.5%',
   },
   floatingAiButton: {
     position: 'absolute',
