@@ -71,3 +71,5 @@ Thumbs.db
 Book-Recomandation-System/
 legacy/
 
+test/
+pytest.ini
